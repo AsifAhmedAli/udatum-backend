@@ -1,8 +1,9 @@
 const router = require("./routes/routes");
 const express = require("express");
 // const conn = require("./conn/conn");
-require("dotenv").config();
+// require("dotenv").config();
 const app = express();
+app.use(express.json());
 const port = 3000;
 
 // app.use(conn);

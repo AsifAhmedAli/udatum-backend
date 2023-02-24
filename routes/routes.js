@@ -8,7 +8,7 @@ const admin_controller = require("../controller/admin_controller");
 const contactform = require("../controller/contact_form");
 const msgs_controller = require("../controller/msgs.js");
 const {
-  validateRegistration,validatePatient,validateLogin, validate
+  validateRegistration,validatePatient,validateLogin, validate,validateContactForm
 } = require("../middleware/validations.js");  
 // router.get("/", function (req, res) {
 //   res.send("homepage");
@@ -39,7 +39,7 @@ router.delete("/delete-all-messages",verifyToken, msgs_controller.delete_all_mes
 router.put("/update-name",verifyToken, user_controllers.update_name);
 router.get("/patient-list-of-a-doctor",verifyToken,user_controllers.all_patients_of_one_doctor
 );
-router.post("/new-contact-form", contactform.new_contact_form);
+router.post("/new-contact-form",validateContactForm, contactform.new_contact_form);
 
 module.exports = router;
 

@@ -30,68 +30,172 @@ const set_new_message = (req, res) => {
   //     return res.status(200).json({ message: "Message sent successfully" });
   //   }
   // );
-
-
+  
   let message = req.body.message;
   let sender_id = req.user.id;
   let sender_name = req.user.name;
   let receiver_id = req.body.receiver_id;
   let receiver_name = req.body.receiver_name
+  var file = req.file;
   // let receiver_name = req.body.receiver_name;
 
-  
-      // Insert the message into the messages table
-      conn.query(
-        "INSERT INTO messages (sender_id,sender_name, receiver_id,receiver_name, message, timestamp) VALUES (?, ?, ?, ?,?,?)",
-        [
+
+
+// First, check if there is an existing conversation between the sender and receiver
+conn.query('SELECT * FROM conversations WHERE (patient_id = ? AND user_id = ?) OR (patient_id = ? AND user_id = ?) LIMIT 1',
+[receiver_id, sender_id, sender_id, receiver_id],
+function(err, result) {
+  if (err) throw err;
+
+  // If there is no existing conversation, create a new one
+  if (result.length == 0) {
+    conn.query('INSERT INTO conversations (patient_id, user_id) VALUES (?, ?)',
+      [receiver_id, sender_id],
+      function(err, result) {
+        if (err) throw err;
+     
+
+        // Insert the message into the messages table with the new conversation ID
+        conn.query('INSERT INTO messages (conversation_id,sender_id,sender_name, receiver_id,receiver_name, message, timestamp) VALUES (?, ?, ?, ?, ?,?,?)',
+          [
+          result.insertId,
           sender_id,
           sender_name,
           receiver_id,
           receiver_name,
           message,
-          moment().format("YYYY-MM-DD HH:mm:ss"),
-        ],
-        (error, results) => {
-          if (error) {
-            return res.status(500).json({ error: error });
-          }
+          moment().format("YYYY-MM-DD HH:mm:ss"),   
+          ],
+          function(err, result) {
+            if (err) throw err;
+            // If files were uploaded, insert the attachments into the attachments table with the new message ID
+            if (req.files) {
+              const message_id = result.insertId;
+              req.files.forEach(function(file) {
+                conn.query(
+                              "INSERT INTO message_attachments (message_id, file_name, file_path, created_at) VALUES (?, ?, ?, ?)",
+                              [
+                                message_id,
+                                file.originalname,
+                                file.path.substr(7),
+                                moment().format("YYYY-MM-DD HH:mm:ss"),
+                              ],
+                  function(err, result) {
+                    if (err) throw err;
+                  });
+              });
+            }
 
-          // Get the id of the inserted message
-          const message_id = results.insertId;
-
-          // Insert the attachments into the message_attachments table
-          req.files.forEach((file) => {
+            res.status(200).json({ success: true, message: 'Message sent successfully.' });
+          });
+      });
+  } else {
+    const conversation_id = result[0].id;
+    // If there is an existing conversation, insert the message into the messages table with the existing conversation ID
+    conn.query('INSERT INTO messages (conversation_id,sender_id,sender_name, receiver_id,receiver_name, message, timestamp) VALUES (?, ?, ?, ?, ?,?,?)',
+      [conversation_id,
+      sender_id,
+          sender_name,
+          receiver_id,
+          receiver_name,
+          message,
+          moment().format("YYYY-MM-DD HH:mm:ss"), 
+          ],
+      function(err, result) {
+        if (err) throw err;
+        // If files were uploaded, insert the attachments into the attachments table with the new message ID
+        if (req.files) {
+          const message_id = result.insertId;
+          req.files.forEach(function(file) {
             conn.query(
-              "INSERT INTO message_attachments (message_id, file_name, file_path, created_at) VALUES (?, ?, ?, ?)",
-              [
-                message_id,
-                file.originalname,
-                file.path.substr(7),
-                moment().format("YYYY-MM-DD HH:mm:ss"),
-              ],
-              (error, results) => {
-                if (error) {
-                  return res.status(500).json({ error: error });
-                }
-              }
-            );
+                          "INSERT INTO message_attachments (message_id, file_name, file_path, created_at) VALUES (?, ?, ?, ?)",
+                          [
+                            message_id,
+                            file.originalname,
+                            file.path.substr(7),
+                            moment().format("YYYY-MM-DD HH:mm:ss"),
+                          ],
+              function(err, result) {
+                if (err) throw err;
+              });
           });
-
-          // Emit the message and attachments to the receiver using socket.io
-          io.to(receiver_id).emit("new message", {
-            message_id: message_id,
-            sender_id: sender_id,
-            sender_name: sender_name,
-            receiver_id: receiver_id,
-            receiver_name: receiver_name,
-            message: message,
-            attachments: req.files,
-            created_at: moment().format("YYYY-MM-DD HH:mm:ss"),
-          });
-
-          res.status(200).json({ message: "Message sent successfully" });
         }
-      );
+
+
+        res.status(200).json({ success: true, message: 'Message sent successfully.' });
+      });
+  }
+});
+
+
+
+
+
+
+
+
+  
+
+  // let message = req.body.message;
+  // let sender_id = req.user.id;
+  // let sender_name = req.user.name;
+  // let receiver_id = req.body.receiver_id;
+  // let receiver_name = req.body.receiver_name
+  // // let receiver_name = req.body.receiver_name;
+
+    
+  //     // Insert the message into the messages table
+  //     conn.query(
+  //       "INSERT INTO messages (sender_id,sender_name, receiver_id,receiver_name, message, timestamp) VALUES (?, ?, ?, ?,?,?)",
+  //       [
+  //         sender_id,
+  //         sender_name,
+  //         receiver_id,
+  //         receiver_name,
+  //         message,
+  //         moment().format("YYYY-MM-DD HH:mm:ss"),
+  //       ],
+  //       (error, results) => {
+  //         if (error) {
+  //           return res.status(500).json({ error: error });
+  //         }
+
+  //         // Get the id of the inserted message
+  //         const message_id = results.insertId;
+
+  //         // Insert the attachments into the message_attachments table
+  //         req.files.forEach((file) => {
+  //           conn.query(
+  //             "INSERT INTO message_attachments (message_id, file_name, file_path, created_at) VALUES (?, ?, ?, ?)",
+  //             [
+  //               message_id,
+  //               file.originalname,
+  //               file.path.substr(7),
+  //               moment().format("YYYY-MM-DD HH:mm:ss"),
+  //             ],
+  //             (error, results) => {
+  //               if (error) {
+  //                 return res.status(500).json({ error: error });
+  //               }
+  //             }
+  //           );
+  //         });
+
+  //         // Emit the message and attachments to the receiver using socket.io
+  //         io.to(receiver_id).emit("new message", {
+  //           message_id: message_id,
+  //           sender_id: sender_id,
+  //           sender_name: sender_name,
+  //           receiver_id: receiver_id,
+  //           receiver_name: receiver_name,
+  //           message: message,
+  //           attachments: req.files,
+  //           created_at: moment().format("YYYY-MM-DD HH:mm:ss"),
+  //         });
+
+  //         res.status(200).json({ message: "Message sent successfully" });
+  //       }
+  //     );
 
 
   // var from = req.body.from;

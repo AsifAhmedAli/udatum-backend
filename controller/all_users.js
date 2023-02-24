@@ -47,7 +47,7 @@ const new_doctor = async (req, res) => {
       subject: "Email Verification",
       text: `Hello ${name}, Thank you for registering as a doctor. Please click on the link below to verify your email address.`,
       html: `<p>Hello ${name},</p> <p>Thank you for registering as a doctor.</p> <p>Please click on the link below to verify your email address:</p>
-        <a href='http://localhost:3000/verify/${token}'>http://localhost:3000/verify/${token}</a>`,
+        <a href='${process.env.SITE_URL}/verify/${token}'>${process.env.SITE_URL}/verify/${token}</a>`,
       // html: `Please click this link to verify your email: <a href="http://localhost:3000/verify/${token}">Verify Email</a>`
     };
     await transporter.sendMail(mailOptions);
@@ -266,7 +266,7 @@ const new_patient = (req, res) => {
           }
         }
       );
-      const emailToken = crypto.randomBytes(20).toString("hex");
+      // const emailToken = crypto.randomBytes(20).toString("hex");
       const transporter = nodemailer.createTransport({
         service: "Gmail",
         auth: {

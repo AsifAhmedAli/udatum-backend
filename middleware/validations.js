@@ -61,6 +61,19 @@ const validatePatient = [
     next();
   };
   
+  const validateContactForm = [
+    check("name").not().isEmpty().withMessage("Name is required"),
+  check("email").isEmail().withMessage("Invalid email address"),
+  check("message").not().isEmpty().withMessage("Message is required"),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({errors: errors.array()});
+    }
+    next();
+  }
+   
+  ];
 
 
-module.exports = { validateRegistration, validatePatient,validateLogin, validate}
+module.exports = { validateRegistration, validatePatient,validateLogin, validate,validateContactForm}

@@ -3,7 +3,7 @@ const { check, validationResult } = require('express-validator');
 const validateRegistration = [
     check('name').not().isEmpty().withMessage('Name is required'),
     check('email').isEmail().withMessage('Invalid email address'),
-    check('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+    check('password'),
     (req, res, next) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {

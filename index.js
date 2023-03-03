@@ -6,6 +6,8 @@ const { Router } = require("express");
 const cookieParser = require('cookie-parser');
 const socketio = require('socket.io')
 const http = require('http')
+
+
 // const conn = require("./conn/conn");
 require("dotenv").config();
 
@@ -20,7 +22,15 @@ io = socketio(server)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(cors());
+app.use(cors({
+  origin:"*",
+  credentials: true,
+}));
+
+
+
+
+
 
 const port = 3000;
 

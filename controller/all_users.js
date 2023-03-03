@@ -2,9 +2,12 @@ const conn = require("../conn/conn");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
+const fs = require('fs');
+const path = require('path');
 
 
 //new registration doctor-controller
+
 
 const new_doctor = async (req, res) => {
   const { name, email, password } = req.body;
@@ -13,53 +16,110 @@ const new_doctor = async (req, res) => {
     conn.query(
       "SELECT * FROM users WHERE email = ?",
       [email],
-      (error, results) => {
+      async (error, results) => {
         if (error) {
-          return res.status(500).send({ error });
+          return res.status(500).json({ message: error.message });
         }
         if (results.length > 0) {
-          return res.status(400).send({ error: "Email already registered" });
+          return res.status(400).json({ message: "Email already registered" });
         }
+
+        const status1 = 0;
+        const verified1 = 0;
+        const insertQuery = `INSERT INTO users (name, email, password, status1, verified1) VALUES (?, ?, ?, ?, ?)`;
+        await conn.query(insertQuery, [name, email, password, status1, verified1]);
+
+        const token = crypto.randomBytes(20).toString("hex");
+        const updateQuery = `UPDATE users SET token = ? WHERE email = ?`;
+        await conn.query(updateQuery, [token, email]);
+
+        const transporter = nodemailer.createTransport({
+          service: "Gmail",
+          port: 465,
+          secure: true,
+          auth: {
+            user: process.env.EMAIL,
+            pass: process.env.PASSWORD,
+          },
+        });
+        const mailOptions = {
+          from: process.env.EMAIL,
+          to: email,
+          subject: "Email Verification",
+          text: `Hello ${name}, Thank you for registering as a doctor. Please click on the link below to verify your email address.`,
+          html: `<p>Hello ${name},</p> <p>Thank you for registering as a doctor.</p> <p>Please click on the link below to verify your email address:</p>
+            <a href='${process.env.SITE_URL}/verify/${token}'>${process.env.SITE_URL}/verify/${token}</a>`,
+          // html: `Please click this link to verify your email: <a href="http://localhost:3000/verify/${token}">Verify Email</a>`
+        };
+        await transporter.sendMail(mailOptions);
+
+        res.status(201).json({
+          message:
+            "User registered successfully. Please check your email for verification link.",
+        });
       }
     );
-
-    const status1 = 0;
-    const verified1 = 0;
-    const insertQuery = `INSERT INTO users (name, email, password, status1, verified1) VALUES (?, ?, ?, ?, ?)`;
-    await conn.query(insertQuery, [name, email, password, status1, verified1]);
-
-    const token = crypto.randomBytes(20).toString("hex");
-    const updateQuery = `UPDATE users SET token = ? WHERE email = ?`;
-    await conn.query(updateQuery, [token, email]);
-
-    const transporter = nodemailer.createTransport({
-      service: "Gmail",
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.EMAIL,
-        pass: process.env.PASSWORD,
-      },
-    });
-    const mailOptions = {
-      from: process.env.EMAIL,
-      to: email,
-      subject: "Email Verification",
-      text: `Hello ${name}, Thank you for registering as a doctor. Please click on the link below to verify your email address.`,
-      html: `<p>Hello ${name},</p> <p>Thank you for registering as a doctor.</p> <p>Please click on the link below to verify your email address:</p>
-        <a href='${process.env.SITE_URL}/verify/${token}'>${process.env.SITE_URL}/verify/${token}</a>`,
-      // html: `Please click this link to verify your email: <a href="http://localhost:3000/verify/${token}">Verify Email</a>`
-    };
-    await transporter.sendMail(mailOptions);
-
-    res.json({
-      message:
-        "User registered successfully. Please check your email for verification link.",
-    });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: error.message });
   }
+};
+
+
+// const new_doctor = async (req, res) => {
+//   const { name, email, password } = req.body;
+//   try {
+//     // Check if the email is already registered
+//     conn.query(
+//       "SELECT * FROM users WHERE email = ?",
+//       [email],
+//       (error, results) => {
+//         if (error) {
+//           return res.status(500).json({ message:error.message });
+//         }
+//         if (results.length > 0) {
+//           return res.status(400).json({ message: "Email already registered" });
+//         }
+//       }
+//     );
+
+//     const status1 = 0;
+//     const verified1 = 0;
+//     const insertQuery = `INSERT INTO users (name, email, password, status1, verified1) VALUES (?, ?, ?, ?, ?)`;
+//     await conn.query(insertQuery, [name, email, password, status1, verified1]);
+
+//     const token = crypto.randomBytes(20).toString("hex");
+//     const updateQuery = `UPDATE users SET token = ? WHERE email = ?`;
+//     await conn.query(updateQuery, [token, email]);
+
+//     const transporter = nodemailer.createTransport({
+//       service: "Gmail",
+//       port: 465,
+//       secure: true,
+//       auth: {
+//         user: process.env.EMAIL,
+//         pass: process.env.PASSWORD,
+//       },
+//     });
+//     const mailOptions = {
+//       from: process.env.EMAIL,
+//       to: email,
+//       subject: "Email Verification",
+//       text: `Hello ${name}, Thank you for registering as a doctor. Please click on the link below to verify your email address.`,
+//       html: `<p>Hello ${name},</p> <p>Thank you for registering as a doctor.</p> <p>Please click on the link below to verify your email address:</p>
+//         <a href='${process.env.SITE_URL}/verify/${token}'>${process.env.SITE_URL}/verify/${token}</a>`,
+//       // html: `Please click this link to verify your email: <a href="http://localhost:3000/verify/${token}">Verify Email</a>`
+//     };
+//     await transporter.sendMail(mailOptions);
+
+//     await res.status(201).json({
+//       message:
+//         "User registered successfully. Please check your email for verification link.",
+//     });
+//   } catch (error) {
+//     // console.log(error);
+//    await res.status(500).json({ message: error.message });
+//   }
 
   // var name1 = req.body.name;
   // var email1 = req.body.email;
@@ -83,8 +143,8 @@ const new_doctor = async (req, res) => {
   //     } else {
   //       return res.send({ msg: "success" });
   //     }
-  //   });
-};
+//   //   });
+// };
 
 // verify Email
 const verify_email = async (req, res) => {
@@ -98,10 +158,15 @@ const verify_email = async (req, res) => {
     } else {
       const updateQuery = `UPDATE users SET verified1 = 1, token = NULL WHERE token = ?`;
       await conn.query(updateQuery, [token]);
-      res.status(200).json({ message: "Email verified successfully" });
+         // Read the verified.html file and send it to the user
+     // if email verification is successful
+     const filePath = path.join(__dirname, '../../emails', 'verificationEmail.html');
+     const fileContent = await fs.promises.readFile(filePath, 'utf-8');
+ 
+     res.send(fileContent);
     }
   } catch (error) {
-    console.log(error);
+    // console.log(error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -149,8 +214,11 @@ const doctor_login = async (req, res) => {
         { expiresIn: 360000 },
         (err, token) => {
             if (err) throw err;
+             res.set('Access-Control-Allow-Origin', '*');
+             res.set('Access-Control-Allow-Credentials', 'true');
+
             res.cookie("token", token, { httpOnly: true });
-            res.status(200).json({ message: "User logged in successfully",user });
+            res.status(200).json({ message: "User logged in successfully",user,token });
         }
     );
       
@@ -158,7 +226,7 @@ const doctor_login = async (req, res) => {
 
     
   } catch (error) {
-    console.log(error);
+    // console.log(error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -171,6 +239,25 @@ const doctor_logout = (req, res) => {
     res.status(200).json({ message: "Logout successful" });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// Get One user/Doctor
+const get_one_doctor = (req, res) => {
+  const userId = req.params.id;
+  const query = `SELECT * FROM users WHERE id = ${userId}`;
+  try {
+    conn.query(query, (err, results) => {
+      if (err) {
+        throw err;
+      }
+      if (results.length === 0) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      return res.status(200).json(results[0]);
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
@@ -346,7 +433,7 @@ const edit_patient = async (req,res)=>{
     return res.json({ message: "Patient data updated successfully" });
   } catch (error) {
     console.error(error.message);
-    res.status(500).json({error:error.message});
+    res.status(500).json({message:error.message});
   }
 
 }
@@ -412,7 +499,7 @@ const delete_patient = async (req, res)=>{
 
                     // Return success response
                     res.json({ message: "Patient Deleted Successfully" });
-                    console.log(patientId)
+                    // console.log(patientId)
                   }
                 );
               }
@@ -574,9 +661,9 @@ const update_name = (req, res) => {
 if (!userId) {
 return res.status(401).send({ error: "Unauthorized" });
 }
-if(!newName){
-  return res.status(400).json("Name Required")
-}
+// if(!newName){
+//   return res.status(400).json("Name Required")
+// }
 
 // console.log(newName)
 
@@ -638,7 +725,7 @@ const patient_login = async (req, res) => {
         expiresIn: "8h",
       });
       res.cookie("token", token, { httpOnly: true });
-      res.status(200).json({ message: "Login successful", user });
+      res.status(200).json({ message: "Login successful", user,token });
     });
 
   
@@ -782,14 +869,14 @@ const patient_login = async (req, res) => {
 
 // Logout for Patient
 
-const patient_logout = (req, res) => {
-  try {
-    res.clearCookie("token");
-    res.status(200).json({ message: "Logout successful" });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+// const patient_logout = (req, res) => {
+//   try {
+//     res.clearCookie("token");
+//     res.status(200).json({ message: "Logout successful" });
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };
 
 
 //all patients of one doctor
@@ -829,5 +916,6 @@ module.exports = {
   patient_login,
   edit_patient,
   delete_patient,
-  patient_logout
+  get_one_doctor,
+  // patient_logout
 };

@@ -22,10 +22,11 @@ router.post(
 router.get("/verify/:token", user_controllers.verify_email);
 router.post("/doctor-login",validateLogin,validate, user_controllers.doctor_login);
 router.get("/doctor-logout", user_controllers.doctor_logout);
+router.get("/get-one-doctor/:id", user_controllers.get_one_doctor);
 router.post("/patient-login",validateLogin,validate, user_controllers.patient_login);
 router.put("/patient-edit/:id",validatePatient, validate,verifyToken, user_controllers.edit_patient);
 router.delete("/patient-delete/:id",verifyToken, user_controllers.delete_patient);
-router.get("/patient-logout", user_controllers.patient_logout);
+// router.get("/patient-logout", user_controllers.patient_logout);
 
 // admin
 router.put("/admin/approve/:id", admin_controller.verifyUser);

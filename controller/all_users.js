@@ -2,12 +2,10 @@ const conn = require("../conn/conn");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
-const fs = require('fs');
-const path = require('path');
-
+const fs = require("fs");
+const path = require("path");
 
 //new registration doctor-controller
-
 
 const new_doctor = async (req, res) => {
   const { name, email, password } = req.body;
@@ -27,7 +25,13 @@ const new_doctor = async (req, res) => {
         const status1 = 0;
         const verified1 = 0;
         const insertQuery = `INSERT INTO users (name, email, password, status1, verified1) VALUES (?, ?, ?, ?, ?)`;
-        await conn.query(insertQuery, [name, email, password, status1, verified1]);
+        await conn.query(insertQuery, [
+          name,
+          email,
+          password,
+          status1,
+          verified1,
+        ]);
 
         const token = crypto.randomBytes(20).toString("hex");
         const updateQuery = `UPDATE users SET token = ? WHERE email = ?`;
@@ -64,7 +68,6 @@ const new_doctor = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 
 // const new_doctor = async (req, res) => {
 //   const { name, email, password } = req.body;
@@ -121,28 +124,28 @@ const new_doctor = async (req, res) => {
 //    await res.status(500).json({ message: error.message });
 //   }
 
-  // var name1 = req.body.name;
-  // var email1 = req.body.email;
-  // var pass1 = req.body.pass;
-  // var dbname = process.env.dbname;
-  // let sql = "CALL " + dbname + ".get_user_with_email(?)";
+// var name1 = req.body.name;
+// var email1 = req.body.email;
+// var pass1 = req.body.pass;
+// var dbname = process.env.dbname;
+// let sql = "CALL " + dbname + ".get_user_with_email(?)";
 
-  // conn.query(sql, [email1], (error, results, fields) => {
-  //   if (error) {
-  //     return console.error(error.message);
-  //   } else {
-  //     console.log(results[0]);
-  //   }
-  // });
+// conn.query(sql, [email1], (error, results, fields) => {
+//   if (error) {
+//     return console.error(error.message);
+//   } else {
+//     console.log(results[0]);
+//   }
+// });
 
-  //   let sql = "CALL " + dbname + ".set_doctor_registration(?, ?, ?)";
+//   let sql = "CALL " + dbname + ".set_doctor_registration(?, ?, ?)";
 
-  //   conn.query(sql, [name1, email1, pass1], (error, results, fields) => {
-  //     if (error) {
-  //       return console.error(error.message);
-  //     } else {
-  //       return res.send({ msg: "success" });
-  //     }
+//   conn.query(sql, [name1, email1, pass1], (error, results, fields) => {
+//     if (error) {
+//       return console.error(error.message);
+//     } else {
+//       return res.send({ msg: "success" });
+//     }
 //   //   });
 // };
 
@@ -158,12 +161,16 @@ const verify_email = async (req, res) => {
     } else {
       const updateQuery = `UPDATE users SET verified1 = 1, token = NULL WHERE token = ?`;
       await conn.query(updateQuery, [token]);
-         // Read the verified.html file and send it to the user
-     // if email verification is successful
-     const filePath = path.join(__dirname, '../../emails', 'verificationEmail.html');
-     const fileContent = await fs.promises.readFile(filePath, 'utf-8');
- 
-     res.send(fileContent);
+      // Read the verified.html file and send it to the user
+      // if email verification is successful
+      const filePath = path.join(
+        __dirname,
+        "../../emails",
+        "verificationEmail.html"
+      );
+      const fileContent = await fs.promises.readFile(filePath, "utf-8");
+
+      res.send(fileContent);
     }
   } catch (error) {
     // console.log(error);
@@ -180,25 +187,27 @@ const doctor_login = async (req, res) => {
     conn.query(checkUserQuery, (error, results) => {
       if (error) throw error;
       if (results.length === 0) {
-        return res.status(400).json({ message: "You are not registered, Please register first" });
+        return res
+          .status(401)
+          .json({ message: "You are not registered, Please register first" });
       }
       const user = results[0];
       if (!user) {
         return res
-          .status(400)
+          .status(401)
           .json({ message: "You are not registered, Please Register first" });
       }
       if (user.password !== password) {
-        return res.status(400).json({ message: "Invalid email or password" });
+        return res.status(401).json({ message: "Invalid email or password" });
       }
       if (user.status1 === 0) {
-        return res.status(400).json({
+        return res.status(401).json({
           message:
-            "You are not verfied by admin. please wait untill admin approved you or contact with administration",
+            "You are not verfied by admin. please wait untill admin approves you or contact with administration",
         });
       }
       if (user.verified1 === 0) {
-        return res.status(400).json({
+        return res.status(401).json({
           message:
             "Please verify your email, go to your registered email and click on verification link",
         });
@@ -206,25 +215,24 @@ const doctor_login = async (req, res) => {
       const payload = {
         id: user.id,
         name: user.name,
-        email: user.email
+        email: user.email,
       };
-      const token =  jwt.sign(
+      const token = jwt.sign(
         payload,
         process.env.jwtSecret,
         { expiresIn: 360000 },
         (err, token) => {
-            if (err) throw err;
-             res.set('Access-Control-Allow-Origin', '*');
-             res.set('Access-Control-Allow-Credentials', 'true');
+          if (err) throw err;
+          res.set("Access-Control-Allow-Origin", "*");
+          res.set("Access-Control-Allow-Credentials", "true");
 
-            res.cookie("token", token, { httpOnly: true });
-            res.status(200).json({ message: "User logged in successfully",user,token });
+          res.cookie("token", token, { httpOnly: true });
+          res
+            .status(200)
+            .json({ message: "User logged in successfully", user, token });
         }
-    );
-      
+      );
     });
-
-    
   } catch (error) {
     // console.log(error);
     res.status(500).json({ error: error.message });
@@ -261,12 +269,9 @@ const get_one_doctor = (req, res) => {
   }
 };
 
-
-
 //new registration of patients controller
 
 const new_patient = (req, res) => {
-  
   const {
     name,
     date_of_birth,
@@ -275,36 +280,31 @@ const new_patient = (req, res) => {
     medical_condition,
     low_threshold,
     high_threshold,
+    device_name,
     device_barcode,
     notes,
   } = req.body;
 
- 
-  const doctorId = req.body.doctorId || req.user.id;; 
-  const doctorName = req.user.name;; 
+  const doctorId = req.body.doctorId || req.user.id;
+  const doctorName = req.user.name;
   const insertPatientQuery = `INSERT INTO patients (name, email, password,doctor_id,doctor_name) VALUES (?,?,?,?,?)`;
   conn.query(
     insertPatientQuery,
-    [
-      name,
-      email,
-      password,
-      doctorId,
-      doctorName
-    ],
+    [name, email, password, doctorId, doctorName],
     (error, results) => {
       if (error) {
         return res.status(500).json({
           success: false,
           message: error.message,
+          message1: "Email Already Registered",
         });
       }
 
       const patientId = results.insertId;
-      const insertPatientDeviceQuery = `INSERT INTO patient_devices (patient_id, device_barcode) VALUES (?,?)`;
+      const insertPatientDeviceQuery = `INSERT INTO patient_devices (patient_id, device_barcode, device_name) VALUES (?,?,?)`;
       conn.query(
         insertPatientDeviceQuery,
-        [patientId, device_barcode],
+        [patientId, device_barcode, device_name],
         (error, results) => {
           if (error) {
             return res.status(500).json({
@@ -318,13 +318,12 @@ const new_patient = (req, res) => {
       // insert patient-doctor relationship into patient_doctor table
 
       const doctorId = req.body.doctorId || req.user.id; // get doctorId from the request body
-      const doctorName =  req.user.name; // get doctorName from the request body
+      const doctorName = req.user.name; // get doctorName from the request body
 
       conn.query(
         "INSERT INTO patient_doctor (patient_id, doctor_id,doctor_name) VALUES (?,?,?)",
-        [patientId, doctorId,doctorName]
+        [patientId, doctorId, doctorName]
       );
- 
 
       const insertPatientNotesQuery = `INSERT INTO patient_notes (patient_id, note) VALUES (?,?)`;
       conn.query(
@@ -343,7 +342,13 @@ const new_patient = (req, res) => {
       const insertPatientDetailsQuery = `INSERT INTO patient_details (patient_id, date_of_birth, medical_condition, low_threshold, high_threshold) VALUES (?,?,?,?,?)`;
       conn.query(
         insertPatientDetailsQuery,
-        [patientId, date_of_birth, medical_condition, low_threshold, high_threshold],
+        [
+          patientId,
+          date_of_birth,
+          medical_condition,
+          low_threshold,
+          high_threshold,
+        ],
         (error, results) => {
           if (error) {
             return res.status(500).json({
@@ -365,83 +370,87 @@ const new_patient = (req, res) => {
       const mailOptions = {
         from: process.env.P_EMAIL,
         to: email,
-        subject: "Your Login Credentials",
+        subject: "New Registration",
         text: `Your login email: ${email} and password: ${password}`,
       };
 
       transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
-          return res.status(500).json({
-            success: false,
-            message: error.message,
-          });
-        }
-      });
-
-      return res.status(200).json({
-        success: true,
-        message: "Patient registered successfully",
+        return res.status(200).json({
+          success: true,
+          message: "Patient Registered Successfully",
+        });
       });
     }
   );
 };
 
-
 //  Edit Patient
 
-const edit_patient = async (req,res)=>{
-
-
-
+const edit_patient = async (req, res) => {
   // const patientId = req.params.id;
   // const { name, date_of_birth, medical_condition, low_threshold, high_threshold } = req.body;
-  
 
   try {
     const { name } = req.body;
     const patientId = req.params.id;
 
-     conn.query("UPDATE patients SET name = ? WHERE id = ?", [name, patientId]);
+    conn.query("UPDATE patients SET name = ? WHERE id = ?", [name, patientId]);
 
     // update patient_details table if data exists
-    if (req.body.low_threshold || req.body.high_threshold || req.body.low_threshold || req.body.high_threshold) {
+    if (
+      req.body.low_threshold ||
+      req.body.high_threshold ||
+      req.body.low_threshold ||
+      req.body.high_threshold
+    ) {
       const date_of_birth = req.body.date_of_birth || null;
       const medical_condition = req.body.medical_condition || null;
       const low_threshold = req.body.low_threshold || null;
       const high_threshold = req.body.high_threshold || null;
-      
 
-      await conn.query("UPDATE patient_details SET date_of_birth = ? , medical_condition = ?, low_threshold = ?, high_threshold = ? WHERE patient_id = ?", [date_of_birth, medical_condition,low_threshold, high_threshold, patientId]);
+      await conn.query(
+        "UPDATE patient_details SET date_of_birth = ? , medical_condition = ?, low_threshold = ?, high_threshold = ? WHERE patient_id = ?",
+        [
+          date_of_birth,
+          medical_condition,
+          low_threshold,
+          high_threshold,
+          patientId,
+        ]
+      );
     }
 
     // update patient_devices table if data exists
     if (req.body.device_barcode || req.body.device_id) {
       const device_barcode = req.body.device_barcode || null;
       // const device_id = req.body.device_id || null;
-     
 
-      await conn.query("UPDATE patient_devices SET device_barcode = ? WHERE patient_id = ?", [device_barcode, patientId]);
+      await conn.query(
+        "UPDATE patient_devices SET device_barcode = ? WHERE patient_id = ?",
+        [device_barcode, patientId]
+      );
     }
 
     // update patient_notes table if data exists
     if (req.body.notes) {
       const notes = req.body.notes || null;
 
-      await conn.query("UPDATE patient_notes SET note = ? WHERE patient_id = ?", [notes, patientId]);
+      await conn.query(
+        "UPDATE patient_notes SET note = ? WHERE patient_id = ?",
+        [notes, patientId]
+      );
     }
 
     return res.json({ message: "Patient data updated successfully" });
   } catch (error) {
     console.error(error.message);
-    res.status(500).json({message:error.message});
+    res.status(500).json({ message: error.message });
   }
-
-}
-
+};
 
 // delete patients
 
-const delete_patient = async (req, res)=>{
+const delete_patient = async (req, res) => {
   // const patientId = req.params.id;
   // const userId = req.user.id
 
@@ -509,29 +518,25 @@ const delete_patient = async (req, res)=>{
       }
     );
   });
-  
-}
+};
 
 //  Get All The Patients of one Doctor
 
-const all_patients_of_one_doctor = async  (req, res)=>{
-
+const all_patients_of_one_doctor = async (req, res) => {
   // Get the doctor ID from the request
-   const doctor_id = req.user.id;
+  const doctor_id = req.user.id;
   // const id = req.params.id;
-
+  // console.log(req.user);
   // Pagination variables
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const offset = (page - 1) * limit;
 
-
   const query = `
-    SELECT patients.*,doctor_name, patient_devices.*, patient_notes.*
-    FROM patients
-    LEFT JOIN patient_devices ON patients.id = patient_devices.patient_id
-    LEFT JOIN patient_notes ON patients.id = patient_notes.patient_id
-    WHERE patients.doctor_id = ?
+  SELECT patients.name,patients.email, patient_details.date_of_birth, patients.id as pid
+  FROM patients
+  LEFT JOIN patient_details ON patients.id = patient_details.patient_id
+  WHERE patients.doctor_id = ?
     LIMIT ? OFFSET ?
   `;
 
@@ -541,34 +546,26 @@ const all_patients_of_one_doctor = async  (req, res)=>{
   WHERE doctor_id = ?
 `;
 
-  
-
-
   conn.query(getTotalQuery, [doctor_id], (error, results, fields) => {
     const totalPatients = results[0].total;
     conn.query(query, [doctor_id, limit, offset], (error, results) => {
+      // console.log(doctor_id);
       if (error) {
-        res.status(500).json({ error:error.message });
+        res.status(500).json({ error: error.message });
       } else {
         res.status(200).json({
-           totalPatients,
-           patients: results
-
-           });
+          totalPatients,
+          patients: results,
+        });
       }
     });
-
   });
-
-}
-
-
+};
 
 //update_pass
 
 const update_pass_func = (req, res) => {
-
-  userId = req.user.id
+  userId = req.user.id;
   // Check if user is logged in and the user id from request body matches the logged in user's id
   if (!userId) {
     return res.status(401).send({ message: "Unauthorized" });
@@ -582,37 +579,33 @@ const update_pass_func = (req, res) => {
   }
 
   if (newPassword !== confirmPassword) {
-    return res.status(400).send({ message: "New password and confirm password do not match" });
+    return res
+      .status(400)
+      .send({ message: "New password and confirm password do not match" });
   }
 
   // Check if old password is correct
-  conn.query(
-    "SELECT * FROM users WHERE id = ?",
-    [userId],
-    (error, results) => {
-      if (error) {
-        return res.status(500).send({ message: error.message });
-      }
-
-
-      // Update password in the database
-
-      // const hashedPassword = bcrypt.hashSync(newPassword, 8);
-
-      conn.query(
-        "UPDATE users SET password = ? WHERE id = ?",
-        [newPassword, userId],
-        (error, results) => {
-          if (error) {
-            return res.status(500).send({ message: error.message });
-          }
-
-          res.status(200).send({ message: "Password updated successfully" });
-        }
-      );
+  conn.query("SELECT * FROM users WHERE id = ?", [userId], (error, results) => {
+    if (error) {
+      return res.status(500).send({ message: error.message });
     }
-  );
 
+    // Update password in the database
+
+    // const hashedPassword = bcrypt.hashSync(newPassword, 8);
+
+    conn.query(
+      "UPDATE users SET password = ? WHERE id = ?",
+      [newPassword, userId],
+      (error, results) => {
+        if (error) {
+          return res.status(500).send({ message: error.message });
+        }
+
+        res.status(200).send({ message: "Password updated successfully" });
+      }
+    );
+  });
 
   // var currentpass = req.body.current_pass;
   // var updated_pass = req.body.updated_pass;
@@ -648,37 +641,32 @@ const update_pass_func = (req, res) => {
   // });
 };
 
-
 //update user name
 
 const update_name = (req, res) => {
-
-  const userId = req.user.id
-  const { newName }  = req.body;
+  const userId = req.user.id;
+  const { newName } = req.body;
   // console.log(userId)
-  
 
-if (!userId) {
-return res.status(401).send({ error: "Unauthorized" });
-}
-// if(!newName){
-//   return res.status(400).json("Name Required")
-// }
+  if (!userId) {
+    return res.status(401).send({ error: "Unauthorized" });
+  }
+  // if(!newName){
+  //   return res.status(400).json("Name Required")
+  // }
 
-// console.log(newName)
+  // console.log(newName)
 
-conn.query(
-"UPDATE users SET name = ? WHERE id = ?",
-[newName, userId],
-(error, results) => {
-if (error) {
-return res.status(500).send({ error });
-}
-return res.status(200).json({ message: "Name updated successfully" });
-}
-);
-
-
+  conn.query(
+    "UPDATE users SET name = ? WHERE id = ?",
+    [newName, userId],
+    (error, results) => {
+      if (error) {
+        return res.status(500).send({ error });
+      }
+      return res.status(200).json({ message: "Name updated successfully" });
+    }
+  );
 
   // var new_name = req.body.name;
   // var user_id = req.body.user_id;
@@ -693,7 +681,6 @@ return res.status(200).json({ message: "Name updated successfully" });
   //   }
   // });
 };
-
 
 //  login for Patients
 
@@ -715,28 +702,127 @@ const patient_login = async (req, res) => {
       if (user.password !== password) {
         return res.status(400).json({ message: "Invalid email or password" });
       }
-      
+
       // const payload = {
       //   id: user.id,
       //   name: user.name,
       //   email: user.email
       // };
-      const token = jwt.sign({ id: user.id,name: user.name, }, process.env.jwtSecret, {
-        expiresIn: "8h",
-      });
+      const token = jwt.sign(
+        { id: user.id, name: user.name },
+        process.env.jwtSecret,
+        {
+          expiresIn: "8h",
+        }
+      );
       res.cookie("token", token, { httpOnly: true });
-      res.status(200).json({ message: "Login successful", user,token });
+      res.status(200).json({ message: "Login successful", user, token });
     });
-
-  
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: error.message });
   }
 };
 
+//one patient details
 
+const get_one_patient = (req, res) => {
+  const userId = req.params.id;
+  const query = `SELECT patients.*, patient_details.* FROM patients LEFT JOIN patient_details ON patients.id = patient_details.patient_id WHERE patients.id = ${userId}`;
+  try {
+    conn.query(query, (err, results) => {
+      if (err) {
+        throw err;
+      }
+      if (results.length === 0) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      return res.status(200).json(results[0]);
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 
+const get_one_patient_devices = (req, res) => {
+  const userId = req.params.id;
+  const query = `SELECT * FROM patient_devices WHERE patient_id = ${userId}`;
+  try {
+    conn.query(query, (err, results) => {
+      if (err) {
+        throw err;
+      }
+      if (results.length === 0) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      return res.status(200).json(results);
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const get_one_patient_notes = (req, res) => {
+  const userId = req.params.id;
+  const query = `SELECT * FROM patient_notes WHERE patient_id = ${userId}`;
+  try {
+    conn.query(query, (err, results) => {
+      if (err) {
+        throw err;
+      }
+      if (results.length === 0) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      return res.status(200).json(results);
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const sharepatientdata = (req, res) => {
+  const { email, patient_link } = req.body;
+  const transporter = nodemailer.createTransport({
+    service: "Gmail",
+    port: 465,
+    secure: true,
+    auth: {
+      user: process.env.EMAIL,
+      pass: process.env.PASSWORD,
+    },
+  });
+  const mailOptions = {
+    from: process.env.EMAIL,
+    to: email,
+    subject: "Patient's Data",
+    text: ``,
+    html: `<p>Please click on the link below to view the patient:</p>
+      <a href='${patient_link}/'>${patient_link}</a>`,
+    // html: `Please click this link to verify your email: <a href="http://localhost:3000/verify/${token}">Verify Email</a>`
+  };
+  transporter.sendMail(mailOptions);
+};
+
+const add_notes = (req, res) => {
+  const { patient_id, note } = req.body;
+
+  // const doctorId = req.body.doctorId || req.user.id;
+  // const doctorName = req.user.name;
+  const insertPatientQuery = `INSERT INTO patient_notes(patient_id, note)  VALUES (?,?)`;
+  conn.query(insertPatientQuery, [patient_id, note], (error, results) => {
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    } else {
+      return res.status(200).json({
+        success: true,
+        message: "Note Added Successfully",
+      });
+    }
+  });
+};
 
 // function new_patient(req, res) {
 //   if (typeof req.body.device_barcode !== "undefined") {
@@ -863,10 +949,6 @@ const patient_login = async (req, res) => {
 //   return 0;
 // }
 
-
-
-
-
 // Logout for Patient
 
 // const patient_logout = (req, res) => {
@@ -877,7 +959,6 @@ const patient_login = async (req, res) => {
 //     res.status(500).json({ message: error.message });
 //   }
 // };
-
 
 //all patients of one doctor
 // const all_patients_of_one_doctor = (req, res) => {
@@ -917,5 +998,10 @@ module.exports = {
   edit_patient,
   delete_patient,
   get_one_doctor,
+  get_one_patient,
+  get_one_patient_devices,
+  add_notes,
+  sharepatientdata,
+  get_one_patient_notes,
   // patient_logout
 };

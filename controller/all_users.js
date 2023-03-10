@@ -518,6 +518,7 @@ const all_patients_of_one_doctor = async  (req, res)=>{
 
   // Get the doctor ID from the request
    const doctor_id = req.user.id;
+   console.log(doctor_id)
   // const id = req.params.id;
 
   // Pagination variables
@@ -527,10 +528,11 @@ const all_patients_of_one_doctor = async  (req, res)=>{
 
 
   const query = `
-    SELECT patients.*,doctor_name, patient_devices.*, patient_notes.*
+    SELECT patients.*,doctor_name, patient_devices.*, patient_notes.*,patient_details.*
     FROM patients
     LEFT JOIN patient_devices ON patients.id = patient_devices.patient_id
     LEFT JOIN patient_notes ON patients.id = patient_notes.patient_id
+    LEFT JOIN patient_details ON patients.id = patient_details.patient_id
     WHERE patients.doctor_id = ?
     LIMIT ? OFFSET ?
   `;
@@ -561,6 +563,32 @@ const all_patients_of_one_doctor = async  (req, res)=>{
   });
 
 }
+// Get One Patinet
+const get_one_patient = (req, res) => {
+  const userId = req.params.id;
+  // const query = `SELECT * FROM patients WHERE id = ${userId}`;
+  const query = `SELECT patients.*, patient_details.date_of_birth,patient_devices.device_barcode
+  FROM patients
+  JOIN patient_details
+  ON patients.id = patient_details.patient_id
+  JOIN patient_devices
+  ON patients.id = patient_devices.patient_id
+  WHERE patients.id = ${userId}`;
+  // console.log(userId)
+  try {
+    conn.query(query, (err, results) => {
+      if (err) {
+        throw err;
+      }
+      if (results.length === 0) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      return res.status(200).json(results[0]);
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 
 
@@ -734,6 +762,26 @@ const patient_login = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Patient Search by Name
+const patient_search_by_name = (req, res) => {
+  const name = req.query.name;
+  const query = `SELECT * FROM patients WHERE name LIKE '%${name}%'`;
+  try {
+    conn.query(query, (err, results) => {
+      if (err) {
+        throw err;
+      }
+      if (results.length === 0) {
+        return res.status(404).json({ message: "No results found" });
+      }
+      return res.status(200).json(results);
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 
 
 
@@ -917,5 +965,7 @@ module.exports = {
   edit_patient,
   delete_patient,
   get_one_doctor,
+  get_one_patient,
+  patient_search_by_name
   // patient_logout
 };

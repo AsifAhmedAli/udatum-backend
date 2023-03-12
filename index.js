@@ -2,12 +2,10 @@ const router = require("./routes/routes");
 const express = require("express");
 const crypto = require("crypto");
 const cors = require("cors");
-// const { Router } = require("express");
-
-const cookieParser = require('cookie-parser');
-const socketio = require('socket.io')
-const http = require('http')
-
+const { Router } = require("express");
+const cookieParser = require("cookie-parser");
+const socketio = require("socket.io");
+const http = require("http");
 
 // const conn = require("./conn/conn");
 require("dotenv").config();
@@ -23,11 +21,12 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(cors({
-  origin:"*",
-  credentials: true,
-}));
-
+app.use(
+  cors({
+    origin: "*",
+    credentials: true,
+  })
+);
 
 const port = 3000;
 

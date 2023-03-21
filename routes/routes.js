@@ -7,6 +7,7 @@ const user_controllers = require("../controller/all_users");
 const admin_controller = require("../controller/admin_controller");
 const contactform = require("../controller/contact_form");
 const msgs_controller = require("../controller/msgs.js");
+const notification_controller = require("../controller/notification_controller.js")
 const {
   validateRegistration,
   validatePatient,
@@ -14,6 +15,7 @@ const {
   validate,
   validateContactForm,
 } = require("../middleware/validations.js");
+const { request } = require("express");
 // router.get("/", function (req, res) {
 //   res.send("homepage");
 // });
@@ -113,6 +115,13 @@ router.delete(
   "/delete-all-messages",
   verifyToken,
   msgs_controller.delete_all_messages
+);
+
+// notification
+router.get(
+  "/check-patient-notifications",
+  verifyToken,
+  notification_controller.check_patient_notifications
 );
 
 

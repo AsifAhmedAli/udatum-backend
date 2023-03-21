@@ -6,6 +6,9 @@ const { Router } = require("express");
 const cookieParser = require("cookie-parser");
 const socketio = require("socket.io");
 const http = require("http");
+// var bodyParser = require("body-parser");
+// var multer = require("multer");
+// var upload = multer();
 
 // const conn = require("./conn/conn");
 require("dotenv").config();
@@ -21,6 +24,15 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+// app.use(bodyParser.json());
+
+// // for parsing application/xwww-
+// app.use(bodyParser.urlencoded({ extended: true }));
+// //form-urlencoded
+
+// // for parsing multipart/form-data
+// app.use(upload.array());
+// app.use(express.static("public"));
 app.use(
   cors({
     origin: "*",

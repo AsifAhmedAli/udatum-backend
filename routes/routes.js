@@ -31,18 +31,34 @@ router.post(
   user_controllers.doctor_login
 );
 router.get("/doctor-logout", user_controllers.doctor_logout);
-router.get("/get-one-doctor/:id", user_controllers.get_one_doctor);
+router.get("/get-one-doctor/:id", verifyToken, user_controllers.get_one_doctor);
+router.post(
+  "/get-one-patient-time/:id",
+  verifyToken,
+  user_controllers.get_one_patient_time
+);
+router.post(
+  "/update-one-patient-time/",
+  verifyToken,
+  user_controllers.addtotime
+);
 
-router.get("/get-one-patient/:id", user_controllers.get_one_patient);
-router.post("/add-note", user_controllers.add_notes);
+router.get(
+  "/get-one-patient/:id",
+  verifyToken,
+  user_controllers.get_one_patient
+);
+router.post("/add-note", validate, verifyToken, user_controllers.add_notes);
 router.get(
   "/all-notes-of-one-patient/:id",
+  verifyToken,
   user_controllers.get_one_patient_notes
 );
 router.post("/share-email-data", user_controllers.sharepatientdata);
 
 router.get(
   "/get-one-patient-devices/:id",
+  verifyToken,
   user_controllers.get_one_patient_devices
 );
 
@@ -55,7 +71,6 @@ router.post(
 router.put(
   "/patient-edit/:id",
   validatePatient,
-  validate,
   verifyToken,
   user_controllers.edit_patient
 );
@@ -79,7 +94,7 @@ router.post(
 router.put("/update-password", verifyToken, user_controllers.update_pass_func);
 router.post(
   "/new-message",
-  verifyToken,
+
   upload.array("attachments", 10),
   msgs_controller.set_new_message
 );
@@ -107,4 +122,22 @@ router.post(
   contactform.new_contact_form
 );
 
+// router.get(
+//   "/all-chats/:id",
+//   verifyToken,
+//   msgs_controller.list_of_all_to_messages
+// );
+
+router.get(
+  "/all-chatrooms/:id",
+  verifyToken,
+  msgs_controller.get_all_chat_rooms_of_a_user
+);
+
+router.get(
+  "/chat-room-messages/:id",
+  verifyToken,
+  msgs_controller.get_all_messages_of_a_chatroom
+);
+router.post("/create-chat-room/:id", verifyToken, msgs_controller.newchatroom);
 module.exports = router;

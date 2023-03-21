@@ -227,6 +227,7 @@ const doctor_login = async (req, res) => {
           res.set("Access-Control-Allow-Credentials", "true");
 
           res.cookie("token", token, { httpOnly: true });
+          // res.cookie("id", user.id, { httpOnly: true });
           res
             .status(200)
             .json({ message: "User logged in successfully", user, token });
@@ -269,6 +270,46 @@ const get_one_doctor = (req, res) => {
   }
 };
 
+//get_one_patient_time
+const get_one_patient_time = (req, res) => {
+  const patientId = req.params.id;
+  const doctor_id = req.body.did;
+  const query = `SELECT * FROM patient_time WHERE patient_id = ${patientId} and doctor_id = ${doctor_id}`;
+  try {
+    conn.query(query, (err, results) => {
+      if (err) {
+        throw err;
+      }
+      if (results.length === 0) {
+        conn.query(
+          `insert into patient_time (doctor_id, patient_id, time_spent) values (?, ? ,?)`,
+          [doctor_id, patientId, 0],
+          (error, results1) => {
+            if (error) {
+              return res.status(500).json({
+                success: false,
+                message: error.message,
+              });
+            } else {
+              return res.status(200).json({
+                success: true,
+                message: "New Time Added Successfully",
+              });
+            }
+          }
+        );
+      }
+      // console.log(results);
+      return res.status(200).json({
+        success: true,
+        message: "Time fetched",
+        results: results,
+      });
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 //new registration of patients controller
 
 const new_patient = (req, res) => {
@@ -391,12 +432,14 @@ const edit_patient = async (req, res) => {
   // const { name, date_of_birth, medical_condition, low_threshold, high_threshold } = req.body;
 
   try {
-    const { name } = req.body;
+    const { name, email } = req.body;
     const patientId = req.params.id;
 
-    conn.query("UPDATE patients SET name = ? WHERE id = ?", [name, patientId]);
-
-    // update patient_details table if data exists
+    conn.query("UPDATE patients SET name = ?, email = ? WHERE id = ?", [
+      name,
+      email,
+      patientId,
+    ]); // update patient_details table if data exists
     if (
       req.body.low_threshold ||
       req.body.high_threshold ||
@@ -421,25 +464,25 @@ const edit_patient = async (req, res) => {
     }
 
     // update patient_devices table if data exists
-    if (req.body.device_barcode || req.body.device_id) {
-      const device_barcode = req.body.device_barcode || null;
-      // const device_id = req.body.device_id || null;
+    // if (req.body.device_barcode || req.body.device_id) {
+    //   const device_barcode = req.body.device_barcode || null;
+    //   // const device_id = req.body.device_id || null;
 
-      await conn.query(
-        "UPDATE patient_devices SET device_barcode = ? WHERE patient_id = ?",
-        [device_barcode, patientId]
-      );
-    }
+    //   await conn.query(
+    //     "UPDATE patient_devices SET device_barcode = ? WHERE patient_id = ?",
+    //     [device_barcode, patientId]
+    //   );
+    // }
 
-    // update patient_notes table if data exists
-    if (req.body.notes) {
-      const notes = req.body.notes || null;
+    // // update patient_notes table if data exists
+    // if (req.body.notes) {
+    //   const notes = req.body.notes || null;
 
-      await conn.query(
-        "UPDATE patient_notes SET note = ? WHERE patient_id = ?",
-        [notes, patientId]
-      );
-    }
+    //   await conn.query(
+    //     "UPDATE patient_notes SET note = ? WHERE patient_id = ?",
+    //     [notes, patientId]
+    //   );
+    // }
 
     return res.json({ message: "Patient data updated successfully" });
   } catch (error) {
@@ -645,18 +688,11 @@ const update_pass_func = (req, res) => {
 
 const update_name = (req, res) => {
   const userId = req.user.id;
-  const { newName } = req.body;
-  // console.log(userId)
+  const newName = req.body.newname;
 
   if (!userId) {
     return res.status(401).send({ error: "Unauthorized" });
   }
-  // if(!newName){
-  //   return res.status(400).json("Name Required")
-  // }
-
-  // console.log(newName)
-
   conn.query(
     "UPDATE users SET name = ? WHERE id = ?",
     [newName, userId],
@@ -664,22 +700,9 @@ const update_name = (req, res) => {
       if (error) {
         return res.status(500).send({ error });
       }
-      return res.status(200).json({ message: "Name updated successfully" });
+      return res.status(200).json({ message: "Name Updated Successfully" });
     }
   );
-
-  // var new_name = req.body.name;
-  // var user_id = req.body.user_id;
-  // var dbname = process.env.dbname;
-  // let sql = "CALL " + dbname + ".update_name(?, ?)";
-
-  // conn.query(sql, [new_name, user_id], (error, results, fields) => {
-  //   if (error) {
-  //     return console.error(error.message);
-  //   } else {
-  //     return res.send({ msg: "success" });
-  //   }
-  // });
 };
 
 //  login for Patients
@@ -716,6 +739,7 @@ const patient_login = async (req, res) => {
         }
       );
       res.cookie("token", token, { httpOnly: true });
+      res.cookie("id", user.id, { httpOnly: true });
       res.status(200).json({ message: "Login successful", user, token });
     });
   } catch (error) {
@@ -824,6 +848,67 @@ const add_notes = (req, res) => {
   });
 };
 
+//timer update of screen
+
+const addtotime = (req, res) => {
+  // console.log(req.user);
+  const doctorId = req.user.id;
+  const patientid = req.body.pid;
+  const time = req.body.time;
+  // const { patientid, doctorId, time } = req.user;
+  // console.log(patientid);
+  // console.log(doctorId);
+  // console.log(time);
+  // console.log(time);
+
+  const query = `SELECT * FROM patient_time WHERE patient_id = ? and doctor_id = ?`;
+  try {
+    conn.query(query, [patientid, doctorId], (err, results) => {
+      if (err) {
+        throw err;
+      }
+      if (results.length === 0) {
+        conn.query(
+          `insert into patient_time (doctor_id, patient_id, time_spent) values (?, ? ,?)`,
+          [doctorId, patientid, time],
+          (error, results1) => {
+            if (error) {
+              return res.status(500).json({
+                success: false,
+                message: error.message,
+              });
+            } else {
+              return res.status(200).json({
+                success: true,
+                message: "Time Added Successfully",
+              });
+            }
+          }
+        );
+      }
+      // console.log(results);
+      conn.query(
+        `update patient_time set time_spent = ? where patient_id = ? and doctor_id = ?`,
+        [time, patientid, doctorId],
+        (error, results1) => {
+          if (error) {
+            return res.status(500).json({
+              success: false,
+              message: error.message,
+            });
+          } else {
+            return res.status(200).json({
+              success: true,
+              message: "Time updated Successfully",
+            });
+          }
+        }
+      );
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 // function new_patient(req, res) {
 //   if (typeof req.body.device_barcode !== "undefined") {
 //     var device_barcode = req.body.device_barcode;
@@ -985,9 +1070,9 @@ const add_notes = (req, res) => {
 //   });
 // }
 module.exports = {
+  addtotime,
   new_patient,
   new_doctor,
-  all_patients_of_one_doctor,
   update_pass_func,
   update_name,
   verify_email,
@@ -1003,5 +1088,6 @@ module.exports = {
   add_notes,
   sharepatientdata,
   get_one_patient_notes,
+  get_one_patient_time,
   // patient_logout
 };

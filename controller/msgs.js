@@ -1,215 +1,98 @@
 const conn = require("../conn/conn");
 
 const moment = require("moment");
-
+var fs = require("fs");
 const io = require("socket.io")();
+// var type = upload.single("msgfileattachment");
 
 //set_new_message
 const set_new_message = (req, res) => {
-
-  // // Get the sender_id, sender_name, receiver_id, and message from the request body
-  // const senderId = req.user.id;
-  // const senderName = req.user.name;
-  // const receiverId = req.body.receiverId;
-  // const message = req.body.message;
-
-  // // Insert the message into the messages table in the database
-  // conn.query(
-  //   "INSERT INTO messages (sender_id, sender_name, receiver_id, message) VALUES (?,?,?,?)",
-  //   [senderId, senderName, receiverId, message],
-  //   (error, results) => {
-  //     if (error) {
-  //       return res.status(500).json({ error });
-  //     }
-  //     // Emit the message to the receiver using Socket.io
-  //     io.to(receiverId).emit("newMessage", {
-  //       senderId,
-  //       senderName,
-  //       message
-  //     });
-  //     return res.status(200).json({ message: "Message sent successfully" });
-  //   }
-  // );
-  
-  let message = req.body.message;
-  let sender_id = req.user.id;
-  let sender_name = req.user.name;
-  let receiver_id = req.body.receiver_id;
-  let receiver_name = req.body.receiver_name
-  var file = req.file;
-  // let receiver_name = req.body.receiver_name;
-
-
-
-// First, check if there is an existing conversation between the sender and receiver
-conn.query('SELECT * FROM conversations WHERE (patient_id = ? AND user_id = ?) OR (patient_id = ? AND user_id = ?) LIMIT 1',
-[receiver_id, sender_id, sender_id, receiver_id],
-function(err, result) {
-  if (err) throw err;
-
-  // If there is no existing conversation, create a new one
-  if (result.length == 0) {
-    conn.query('INSERT INTO conversations (patient_id, user_id) VALUES (?, ?)',
-      [receiver_id, sender_id],
-      function(err, result) {
-        if (err) throw err;
-     
-
-        // Insert the message into the messages table with the new conversation ID
-        conn.query('INSERT INTO messages (conversation_id,sender_id,sender_name, receiver_id,receiver_name, message, timestamp) VALUES (?, ?, ?, ?, ?,?,?)',
-          [
-          result.insertId,
-          sender_id,
-          sender_name,
-          receiver_id,
-          receiver_name,
-          message,
-          moment().format("YYYY-MM-DD HH:mm:ss"),   
-          ],
-          function(err, result) {
-            if (err) throw err;
-            // If files were uploaded, insert the attachments into the attachments table with the new message ID
-            if (req.files) {
-              const message_id = result.insertId;
-              req.files.forEach(function(file) {
-                conn.query(
-                              "INSERT INTO message_attachments (message_id, file_name, file_path, created_at) VALUES (?, ?, ?, ?)",
-                              [
-                                message_id,
-                                file.originalname,
-                                file.path.substr(7),
-                                moment().format("YYYY-MM-DD HH:mm:ss"),
-                              ],
-                  function(err, result) {
-                    if (err) throw err;
-                  });
-              });
-            }
-
-            res.status(200).json({ success: true, message: 'Message sent successfully.' });
-          });
-      });
+  // console.log(req.body);
+  // const [chatroomID, msg, sender_id] = req.body;
+  chatroomID = req.body.chatroomid;
+  if (req.body.msgarea == "") {
+    msg = "";
   } else {
-    const conversation_id = result[0].id;
-    // If there is an existing conversation, insert the message into the messages table with the existing conversation ID
-    conn.query('INSERT INTO messages (conversation_id,sender_id,sender_name, receiver_id,receiver_name, message, timestamp) VALUES (?, ?, ?, ?, ?,?,?)',
-      [conversation_id,
-      sender_id,
-          sender_name,
-          receiver_id,
-          receiver_name,
-          message,
-          moment().format("YYYY-MM-DD HH:mm:ss"), 
-          ],
-      function(err, result) {
-        if (err) throw err;
-        // If files were uploaded, insert the attachments into the attachments table with the new message ID
-        if (req.files) {
-          const message_id = result.insertId;
-          req.files.forEach(function(file) {
-            conn.query(
-                          "INSERT INTO message_attachments (message_id, file_name, file_path, created_at) VALUES (?, ?, ?, ?)",
-                          [
-                            message_id,
-                            file.originalname,
-                            file.path.substr(7),
-                            moment().format("YYYY-MM-DD HH:mm:ss"),
-                          ],
-              function(err, result) {
-                if (err) throw err;
-              });
-          });
-        }
-
-
-        res.status(200).json({ success: true, message: 'Message sent successfully.' });
-      });
+    msg = req.body.msgarea;
   }
-});
-
-
-
-
-
-
-
-
-  
-
-  // let message = req.body.message;
-  // let sender_id = req.user.id;
-  // let sender_name = req.user.name;
-  // let receiver_id = req.body.receiver_id;
-  // let receiver_name = req.body.receiver_name
-  // // let receiver_name = req.body.receiver_name;
-
-    
-  //     // Insert the message into the messages table
-  //     conn.query(
-  //       "INSERT INTO messages (sender_id,sender_name, receiver_id,receiver_name, message, timestamp) VALUES (?, ?, ?, ?,?,?)",
-  //       [
-  //         sender_id,
-  //         sender_name,
-  //         receiver_id,
-  //         receiver_name,
-  //         message,
-  //         moment().format("YYYY-MM-DD HH:mm:ss"),
-  //       ],
-  //       (error, results) => {
-  //         if (error) {
-  //           return res.status(500).json({ error: error });
-  //         }
-
-  //         // Get the id of the inserted message
-  //         const message_id = results.insertId;
-
-  //         // Insert the attachments into the message_attachments table
-  //         req.files.forEach((file) => {
-  //           conn.query(
-  //             "INSERT INTO message_attachments (message_id, file_name, file_path, created_at) VALUES (?, ?, ?, ?)",
-  //             [
-  //               message_id,
-  //               file.originalname,
-  //               file.path.substr(7),
-  //               moment().format("YYYY-MM-DD HH:mm:ss"),
-  //             ],
-  //             (error, results) => {
-  //               if (error) {
-  //                 return res.status(500).json({ error: error });
-  //               }
-  //             }
-  //           );
-  //         });
-
-  //         // Emit the message and attachments to the receiver using socket.io
-  //         io.to(receiver_id).emit("new message", {
-  //           message_id: message_id,
-  //           sender_id: sender_id,
-  //           sender_name: sender_name,
-  //           receiver_id: receiver_id,
-  //           receiver_name: receiver_name,
-  //           message: message,
-  //           attachments: req.files,
-  //           created_at: moment().format("YYYY-MM-DD HH:mm:ss"),
-  //         });
-
-  //         res.status(200).json({ message: "Message sent successfully" });
-  //       }
-  //     );
-
-
-  // var from = req.body.from;
-  // var to = req.body.to;
-  // var msg = req.body.msg;
-  // var dbname = process.env.dbname;
-  // let sql3 = "CALL " + dbname + ".set_message(?, ?, ?)";
-  // conn.query(sql3, [from, to, msg], (error, results, fields) => {
-  //   if (error) {
-  //     return console.error(error.message);
-  //   } else {
-  //     return res.send({ msg: "success" });
-  //   }
-  // });
+  sender_id = req.body.sender_id;
+  conn.query(
+    "INSERT INTO messages (sender_id, message, chatroomid) VALUES (?, ?, ?)",
+    [sender_id, msg, chatroomID],
+    function (err, result) {
+      if (err) {
+        console.log(err);
+      }
+    }
+  );
+  if (req.files) {
+    req.files.forEach(function (file) {
+      var newname = file.originalname.replaceAll(" ", "");
+      if (fs.existsSync("uploads/" + newname)) {
+        var tmp_path = file.path;
+        var time = Date.now();
+        var updatednewname = time + newname;
+        var target_path = "uploads/" + updatednewname;
+        // console.log(target_path);
+        //Copy the uploaded file to a custom folder
+        fs.rename(tmp_path, target_path, function () {
+          conn.query(
+            "SELECT id FROM messages WHERE sender_id = ? and message = ? and chatroomid = ? and id = (select max(id) from messages)",
+            [sender_id, msg, chatroomID],
+            (error, results, fields) => {
+              if (error) {
+                console.log(error);
+              }
+              var idofmessage = results[0].id;
+              // console.log(idofmessage);
+              conn.query(
+                "INSERT INTO message_attachments(message_id, file_name, file_path) VALUES (?, ?, ?)",
+                [idofmessage, updatednewname, target_path],
+                function (err, result) {
+                  if (err) {
+                    console.log(err);
+                  }
+                }
+              );
+            }
+          );
+        });
+      } else {
+        var tmp_path = file.path;
+        var target_path = "uploads/" + newname;
+        // console.log(target_path);
+        //Copy the uploaded file to a custom folder
+        fs.rename(tmp_path, target_path, function () {
+          conn.query(
+            "SELECT id FROM messages WHERE sender_id = ? and message = ? and chatroomid = ? and id = (select max(id) from messages)",
+            [sender_id, msg, chatroomID],
+            (error, results, fields) => {
+              if (error) {
+                console.log(error);
+              }
+              var idofmessage = results[0].id;
+              // console.log(idofmessage);
+              conn.query(
+                "INSERT INTO message_attachments(message_id, file_name, file_path) VALUES (?, ?, ?)",
+                [idofmessage, newname, target_path],
+                function (err, result) {
+                  if (err) {
+                    console.log(err);
+                    // return res.json({ err });
+                  }
+                }
+              );
+            }
+          );
+          //Send a NodeJS file upload confirmation message
+          // res.write("NodeJS File Upload Success!");
+          // res.end();
+        });
+        // console.log("file not found!");
+      }
+    });
+  }
+  return res.status(200).json({ message: "Success" });
 };
 const edit_message = (req, res) => {
   const message_id = req.params.id;
@@ -217,72 +100,252 @@ const edit_message = (req, res) => {
   const { message } = req.body;
 
   conn.query(
-    'UPDATE messages SET message = ? WHERE id = ? AND sender_id = ?',
+    "UPDATE messages SET message = ? WHERE id = ? AND sender_id = ?",
     [message, message_id, userId],
     (err, result) => {
       if (err) {
         return res.status(500).send({ message: err.message });
       }
       if (result.affectedRows === 0) {
-        return res.status(400).send({ message: 'Message not found or unauthorized' });
+        return res
+          .status(400)
+          .send({ message: "Message not found or unauthorized" });
       }
       // Emit the updated message to all connected clients
-      io.emit('update message', { id: message_id, message });
-      return res.send({ message: 'Message updated successfully' });
+      io.emit("update message", { id: message_id, message });
+      return res.send({ message: "Message updated successfully" });
     }
   );
-}
+};
 
 // Delete a message
 
 const delete_message = (req, res) => {
-
   const messageId = req.params.id;
   const userId = req.user.id;
 
   conn.query(
-    'DELETE FROM messages WHERE id = ? AND sender_id = ?',
+    "DELETE FROM messages WHERE id = ? AND sender_id = ?",
     [messageId, userId],
     (err, result) => {
       if (err) {
-        return res.status(500).send({ message: 'Error deleting message' });
+        return res.status(500).send({ message: "Error deleting message" });
       }
       if (result.affectedRows === 0) {
-        return res.status(400).send({ message: 'You can only delete your own message' });
+        return res
+          .status(400)
+          .send({ message: "You can only delete your own message" });
       }
       // Emit the deleted message to all connected clients
-      io.emit('delete message', messageId);
-      return res.send({ message: 'Message deleted successfully' });
+      io.emit("delete message", messageId);
+      return res.send({ message: "Message deleted successfully" });
     }
   );
-
-}
-
+};
 
 // Delete all chat
 const delete_all_messages = async (req, res) => {
   const userId = req.user.id;
 
   conn.query(
-    'DELETE FROM messages WHERE sender_id = ?',
+    "DELETE FROM messages WHERE sender_id = ?",
     [userId],
     (err, result) => {
       if (err) {
-        return res.status(500).send({ message: 'Error deleting messages' });
+        return res.status(500).send({ message: "Error deleting messages" });
       }
       if (result.affectedRows === 0) {
-        return res.status(400).send({ message: 'No messages found' });
+        return res.status(400).send({ message: "No messages found" });
       }
       // Emit the deleted messages to all connected clients
-      io.emit('delete messages', userId);
-      return res.send({ message: 'Messages deleted successfully' });
+      io.emit("delete messages", userId);
+      return res.send({ message: "Messages deleted successfully" });
     }
   );
-}
+};
+
+// const list_of_all_to_messages = (req, res) => {
+//   const userId = req.params.id;
+
+//   conn.query(
+//     "SELECT * FROM messages WHERE sender_id = ? or receiver_id = ? group by receiver_id",
+//     [userId, userId],
+//     (error, results, fields) => {
+//       // const totalPatients = results;
+
+//       // console.log(doctor_id);
+//       if (error) {
+//         res.status(500).json({ error: error.message });
+//       } else {
+//         res.status(200).json({
+//           results,
+//           // patients: results,
+//         });
+//       }
+//     }
+//   );
+// conn.query(
+
+//   [],
+//   (err, result) => {
+//     if (err) {
+//       return res.status(500).send({ message: 'Error deleting messages' });
+//     }
+//     if (result.affectedRows === 0) {
+//       return res.status(400).send({ message: 'No messages found' });
+//     }
+//     // Emit the deleted messages to all connected clients
+//     io.emit('delete messages', userId);
+//     return res.send({ message: 'Messages deleted successfully' });
+//   }
+// );
+// };
+
+// new chat room
+const newchatroom = (req, res) => {
+  // const { chatroomname } = req.params;
+  // function getParameterByName(name, url = window.location.href) {
+  //   name = name.replace(/[\[\]]/g, "\\$&");
+  //   var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+  //     results = regex.exec(url);
+  //   if (!results) return null;
+  //   if (!results[2]) return "";
+  //   return decodeURIComponent(results[2].replace(/\+/g, " "));
+  // }
+  // const params = Object.fromEntries(req.params.id.entries());
+  const urlParams = new URLSearchParams(req.params.id);
+  // console.log(req.params.id.moiz);
+  // console.log(urlParams);
+  keys1 = [];
+  values1 = [];
+  const keys = urlParams.keys(),
+    values = urlParams.values();
+  for (const key of keys) {
+    keys1.push(key);
+    // console.log(key);
+  }
+  for (const value of values) {
+    values1.push(value);
+    // console.log(value);
+  }
+  const chatroomname = values1.shift();
+  const created_by = values1.pop();
+  // urlParams.forEach((key) => {
+  // console.log(values1.length);
+  var keysa = "";
+  var valsa = "";
+
+  // });
+  try {
+    // Check if the email is already registered
+    conn.query(
+      "INSERT INTO chatroom (name, created_by) VALUES (?, ?)",
+      [chatroomname, created_by],
+      async (error, results) => {
+        if (error) {
+          return res.status(500).json({ message: error.message });
+        }
+        conn.query(
+          `SELECT * from chatroom where name = ? and created_by = ? and id = (select max(id) from chatroom)`,
+          [chatroomname, created_by],
+          async (error, results) => {
+            if (error) {
+              return res.status(500).json({ message: error.message });
+            }
+            var rea = results[0].id;
+            // console.log(values1);
+            keysa = `(${results[0].id}, ${created_by})`;
+            for (i = 0; i < values1.length; i++) {
+              keysa += `,(${rea}, ${values1[i]})`;
+            }
+            // console.log(keysa);
+            // -------------------------------------------------------------
+            // results[0].id
+            // console.log();/
+            const insertQuery = `INSERT INTO chatroommembers (chatroomID, memberID) VALUES ${keysa}`;
+            await conn.query(insertQuery, [], async (error, results) => {
+              if (error) {
+                return res.status(500).json({ message: error.message });
+              }
+              res.status(201).json({
+                message: "Chatroom registered successfully.",
+                success: true,
+              });
+            });
+          }
+        );
+      }
+    );
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: error.message, success: false });
+  }
+};
+
+const get_all_chat_rooms_of_a_user = (req, res) => {
+  const userId = req.params.id;
+
+  conn.query(
+    "SELECT chatroom.name,chatroom.id FROM chatroom join chatroommembers on chatroommembers.chatroomID = chatroom.id WHERE chatroommembers.memberID = ?",
+    [userId],
+    (error, results, fields) => {
+      if (error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.status(200).json({
+          results,
+          // patients: results,
+        });
+      }
+    }
+  );
+};
+
+const get_all_messages_of_a_chatroom = (req, res) => {
+  const chatroomID = req.params.id;
+  conn.query(
+    "SELECT * FROM messages  WHERE chatroomid = ?",
+    [chatroomID],
+    (error, results, fields) => {
+      if (error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        // results.forEach((key) => {
+        //   conn.query(
+        //     "SELECT * FROM message_attachments WHERE message_id = ?",
+        //     [key.id],
+        //     (error, results1, fields) => {
+        //       if (error) {
+        //         res.status(500).json({ error: error.message });
+        //       } else {
+        //         if (results1 == "") {
+        //         } else {
+        //           results = results.push(results1);
+        //         }
+        //         // res.status(200).json({ results1 });
+        //       }
+        //     }
+        //   );
+        // });
+        // console.log(results);
+        res.status(200).json({ results });
+      }
+    }
+  );
+};
 // getchat
 // const getchat = (req, res) => {
 //     var from = req.body.from;
 //     var to = req.body.to;
 
 // }
-module.exports = { set_new_message,delete_message,delete_all_messages,edit_message };
+module.exports = {
+  set_new_message,
+  delete_message,
+  delete_all_messages,
+  edit_message,
+  // list_of_all_to_messages,
+  newchatroom,
+  get_all_chat_rooms_of_a_user,
+  get_all_messages_of_a_chatroom,
+};

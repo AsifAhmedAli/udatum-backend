@@ -567,7 +567,9 @@ const delete_patient = async (req, res) => {
 
 const all_patients_of_one_doctor = async (req, res) => {
   // Get the doctor ID from the request
-  const doctor_id = req.user.id;
+
+   const doctor_id = req.user.id;
+  //  console.log(doctor_id)
   // const id = req.params.id;
   // console.log(req.user);
   // Pagination variables
@@ -575,14 +577,30 @@ const all_patients_of_one_doctor = async (req, res) => {
   const limit = parseInt(req.query.limit) || 10;
   const offset = (page - 1) * limit;
 
-  const query = `
-  SELECT patients.name,patients.email, patient_details.date_of_birth, patients.id as pid
-  FROM patients
-  LEFT JOIN patient_details ON patients.id = patient_details.patient_id
-  WHERE patients.doctor_id = ?
-    LIMIT ? OFFSET ?
-  `;
+  // const query = `
 
+  //   SELECT patients.*,doctor_name, patient_devices.*, patient_notes.*,patient_details.*
+  //   FROM patients
+  //   LEFT JOIN patient_devices ON patients.id = patient_devices.patient_id
+  //   LEFT JOIN patient_notes ON patients.id = patient_notes.patient_id
+  //   LEFT JOIN patient_details ON patients.id = patient_details.patient_id
+  //   WHERE patients.doctor_id = ?
+  // SELECT patients.name,patients.email, patient_details.date_of_birth, patients.id as pid
+  // FROM patients
+  // LEFT JOIN patient_details ON patients.id = patient_details.patient_id
+  // WHERE patients.doctor_id = ?
+  //   LIMIT ? OFFSET ?
+  // `;
+
+  const query = `
+  SELECT patients.*,doctor_name, patient_devices.*, patient_notes.*,patient_details.*
+FROM patients
+LEFT JOIN patient_devices ON patients.id = patient_devices.patient_id
+LEFT JOIN patient_notes ON patients.id = patient_notes.patient_id
+LEFT JOIN patient_details ON patients.id = patient_details.patient_id
+WHERE patients.doctor_id = ?
+LIMIT ? OFFSET ?;
+`
   const getTotalQuery = `
   SELECT COUNT(*) as total
   FROM patients
@@ -603,7 +621,35 @@ const all_patients_of_one_doctor = async (req, res) => {
       }
     });
   });
+
+}
+// Get One Patinet
+const get_one_patient = (req, res) => {
+  const userId = req.params.id;
+  // const query = `SELECT * FROM patients WHERE id = ${userId}`;
+  const query = `SELECT patients.*, patient_details.*,patient_devices.device_barcode
+  FROM patients
+  JOIN patient_details
+  ON patients.id = patient_details.patient_id
+  JOIN patient_devices
+  ON patients.id = patient_devices.patient_id
+  WHERE patients.id = ${userId}`;
+  // console.log(userId)
+  try {
+    conn.query(query, (err, results) => {
+      if (err) {
+        throw err;
+      }
+      if (results.length === 0) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      return res.status(200).json(results[0]);
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
 };
+
 
 //update_pass
 
@@ -747,26 +793,43 @@ const patient_login = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
-//one patient details
-
-const get_one_patient = (req, res) => {
-  const userId = req.params.id;
-  const query = `SELECT patients.*, patient_details.* FROM patients LEFT JOIN patient_details ON patients.id = patient_details.patient_id WHERE patients.id = ${userId}`;
+// Patient Search by Name
+const patient_search_by_name = (req, res) => {
+  const name = req.query.name;
+  const query = `SELECT * FROM patients WHERE name LIKE '%${name}%'`;
   try {
     conn.query(query, (err, results) => {
       if (err) {
         throw err;
       }
       if (results.length === 0) {
-        return res.status(404).json({ message: "User not found" });
+        return res.status(404).json({ message: "No results found" });
       }
-      return res.status(200).json(results[0]);
+      return res.status(200).json(results);
     });
   } catch (error) {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+//one patient details
+
+// const get_one_patient = (req, res) => {
+//   const userId = req.params.id;
+//   const query = `SELECT patients.*, patient_details.* FROM patients LEFT JOIN patient_details ON patients.id = patient_details.patient_id WHERE patients.id = ${userId}`;
+//   try {
+//     conn.query(query, (err, results) => {
+//       if (err) {
+//         throw err;
+//       }
+//       if (results.length === 0) {
+//         return res.status(404).json({ message: "User not found" });
+//       }
+//       return res.status(200).json(results[0]);
+//     });
+//   } catch (error) {
+//     return res.status(500).json({ message: "Internal server error" });
+//   }
+// };
 
 const get_one_patient_devices = (req, res) => {
   const userId = req.params.id;
@@ -1078,12 +1141,12 @@ module.exports = {
   verify_email,
   doctor_login,
   doctor_logout,
-  all_patients_of_one_doctor,
   patient_login,
   edit_patient,
   delete_patient,
   get_one_doctor,
   get_one_patient,
+  patient_search_by_name,
   get_one_patient_devices,
   add_notes,
   sharepatientdata,

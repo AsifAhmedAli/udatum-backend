@@ -7,6 +7,7 @@ const user_controllers = require("../controller/all_users");
 const admin_controller = require("../controller/admin_controller");
 const contactform = require("../controller/contact_form");
 const msgs_controller = require("../controller/msgs.js");
+const notification_controller = require("../controller/notification_controller.js");
 const {
   validateRegistration,
   validatePatient,
@@ -14,6 +15,7 @@ const {
   validate,
   validateContactForm,
 } = require("../middleware/validations.js");
+const { request } = require("express");
 // router.get("/", function (req, res) {
 //   res.send("homepage");
 // });
@@ -79,6 +81,7 @@ router.delete(
   verifyToken,
   user_controllers.delete_patient
 );
+
 // router.get("/patient-logout", user_controllers.patient_logout);
 
 // admin
@@ -92,6 +95,20 @@ router.post(
   user_controllers.new_patient
 );
 router.put("/update-password", verifyToken, user_controllers.update_pass_func);
+router.put("/update-name", verifyToken, user_controllers.update_name);
+router.get(
+  "/patient-list-of-a-doctor",
+  verifyToken,
+  user_controllers.all_patients_of_one_doctor
+);
+
+router.post(
+  "/new-contact-form",
+  validateContactForm,
+  contactform.new_contact_form
+);
+
+// messages
 router.post(
   "/new-message",
 
@@ -109,17 +126,12 @@ router.delete(
   verifyToken,
   msgs_controller.delete_all_messages
 );
-router.put("/update-name", verifyToken, user_controllers.update_name);
-router.get(
-  "/patient-list-of-a-doctor",
-  verifyToken,
-  user_controllers.all_patients_of_one_doctor
-);
 
-router.post(
-  "/new-contact-form",
-  validateContactForm,
-  contactform.new_contact_form
+// notification
+router.get(
+  "/check-patient-notifications",
+  verifyToken,
+  notification_controller.check_patient_notifications
 );
 
 // router.get(

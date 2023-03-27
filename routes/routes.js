@@ -75,7 +75,9 @@ router.delete(
 // router.get("/patient-logout", user_controllers.patient_logout);
 
 // admin
-router.put("/admin/approve/:id", admin_controller.verifyUser);
+router.put("/admin/approve/:id",verifyToken, admin_controller.verifyUser);
+router.get("/admin/get-all-doctors",verifyToken, admin_controller.get_all_doctors);
+router.put("/admin/block-doctor-account/:id",verifyToken, admin_controller.block_doctor_account);
 // end admin
 router.post(
   "/patient-registration",
@@ -122,6 +124,11 @@ router.get(
   "/check-patient-notifications",
   verifyToken,
   notification_controller.check_patient_notifications
+);
+router.put(
+  "/mark-read-notifications/:patientId",
+  verifyToken,
+  notification_controller.markNotificationAsRead
 );
 
 

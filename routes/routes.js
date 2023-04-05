@@ -20,6 +20,9 @@ const { request } = require("express");
 //   res.send("homepage");
 // });
 // router.get("/conn", conn);
+router.post("/get-access-token", user_controllers.get_auth_token);
+router.post("/get-weight", user_controllers.get_weight);
+
 router.post(
   "/doctor-registration",
   validateRegistration,
@@ -50,7 +53,7 @@ router.get(
   verifyToken,
   user_controllers.get_one_patient
 );
-router.post("/add-note", validate, verifyToken, user_controllers.add_notes);
+router.post("/add-note", verifyToken, user_controllers.add_notes);
 router.get(
   "/all-notes-of-one-patient/:id",
   verifyToken,
@@ -82,7 +85,8 @@ router.delete(
   user_controllers.delete_patient
 );
 
-// router.get("/patient-logout", user_controllers.patient_logout);
+router.get("/patient-logout", user_controllers.patient_logout);
+router.get("/countchatroommembers/:id", msgs_controller.countchatroommembers);
 
 // admin
 router.put("/admin/approve/:id", admin_controller.verifyUser);

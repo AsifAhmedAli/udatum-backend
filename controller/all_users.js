@@ -1,10 +1,14 @@
 const conn = require("../conn/conn");
 const jwt = require("jsonwebtoken");
-const crypto = require("crypto");
+// const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const fs = require("fs");
 const path = require("path");
+var request = require("request");
+const crypto = require("crypto");
+const { json } = require("express");
 
+// const { time } = require("console");
 //new registration doctor-controller
 
 const new_doctor = async (req, res) => {
@@ -181,6 +185,18 @@ const verify_email = async (req, res) => {
 //  Login Controler for Doctor
 
 const doctor_login = async (req, res) => {
+  function HMAC(data) {
+    key = process.env.secret_ID_withings;
+    return crypto.createHmac("sha256", key).update(data).digest();
+  }
+  // function encrypt(data) {
+  //   // console.log(data);
+  //   var signature = CryptoJS.HmacSHA256(
+  //     "data",
+  //     "process.env.secret_ID_withings"
+  //   ).toString();
+  //   console.log(signature);
+  // }
   const { email, password } = req.body;
   try {
     const checkUserQuery = `SELECT * FROM users WHERE email = '${email}'`;
@@ -223,14 +239,65 @@ const doctor_login = async (req, res) => {
         { expiresIn: 360000 },
         (err, token) => {
           if (err) throw err;
-          res.set("Access-Control-Allow-Origin", "*");
-          res.set("Access-Control-Allow-Credentials", "true");
+          // Timestamp
+          var timestamp = Date.now();
+          // console.log(timestamp / 1000);
+          timestamp = parseInt(timestamp / 1000);
+          // console.log(timestamp);
+          // Use the CryptoJS
+          // console.log(timestamp);
+          var data =
+            "getnonce" + "," + process.env.client_ID_withings + "," + timestamp;
+          // console.log(
+          //   CryptoJS.HmacSHA256(data, process.env.secret_ID_withings)
+          // );
+          // console.log(process.env.secret_ID_withings);
+          signature = HMAC(data);
+          // var signature = CryptoJS.HmacSHA256(
+          //   data,
+          //   process.env.secret_ID_withings
+          // ).toString();
+          // console.log(process.env.client_ID_withings);
+          signature = signature.toString("hex");
+          // console.log(signature);
+          // Set the new environment variable
+          // pm.environment.set('timestamp', timestamp);
+          // pm.environment.set('signature', signature);
 
-          res.cookie("token", token, { httpOnly: true });
-          // res.cookie("id", user.id, { httpOnly: true });
-          res
-            .status(200)
-            .json({ message: "User logged in successfully", user, token });
+          var options = {
+            method: "POST",
+            url: "https://wbsapi.withings.net/v2/signature",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            form: {
+              action: "getnonce",
+              client_id: process.env.client_ID_withings,
+              timestamp: timestamp,
+              signature: signature,
+            },
+          };
+          request(options, function (error, response) {
+            if (error) throw new Error(error);
+            var resa = JSON.parse(response.body);
+            nonce = resa.body.nonce;
+            var state = "state";
+            var url = `https://account.withings.com/oauth2_user/authorize2?response_type=code&client_id=${process.env.client_ID_withings}&redirect_uri=${process.env.redirecturl_withings}&state=${state}&scope=user.metrics,user.activity`;
+
+            res.set("Access-Control-Allow-Origin", "*");
+            res.set("Access-Control-Allow-Credentials", "true");
+
+            res.cookie("token", token, { httpOnly: true });
+            // res.cookie("id", user.id, { httpOnly: true });
+            delete user.password;
+            res.status(200).json({
+              message: "User logged in successfully",
+              user,
+              token,
+              url,
+              nonce,
+            });
+          });
         }
       );
     });
@@ -279,8 +346,7 @@ const get_one_patient_time = (req, res) => {
     conn.query(query, (err, results) => {
       if (err) {
         throw err;
-      }
-      if (results.length === 0) {
+      } else if (results.length === 0) {
         conn.query(
           `insert into patient_time (doctor_id, patient_id, time_spent) values (?, ? ,?)`,
           [doctor_id, patientId, 0],
@@ -291,20 +357,32 @@ const get_one_patient_time = (req, res) => {
                 message: error.message,
               });
             } else {
-              return res.status(200).json({
-                success: true,
-                message: "New Time Added Successfully",
+              conn.query(query, (err, results) => {
+                if (err) {
+                  throw err;
+                } else {
+                  return res.status(200).json({
+                    success: true,
+                    message: "Time fetched",
+                    results: results,
+                  });
+                }
               });
+              // return res.status(200).json({
+              //   success: true,
+              //   message: "New Time Added Successfully",
+              // });
             }
           }
         );
+      } else {
+        return res.status(200).json({
+          success: true,
+          message: "Time fetched",
+          results: results,
+        });
       }
       // console.log(results);
-      return res.status(200).json({
-        success: true,
-        message: "Time fetched",
-        results: results,
-      });
     });
   } catch (error) {
     return res.status(500).json({ message: "Internal server error" });
@@ -508,59 +586,105 @@ const delete_patient = async (req, res) => {
   }
 
   // Delete the patient from the patients table
-  conn.query("DELETE FROM patients WHERE id = ?", [patientId], (error) => {
-    if (error) {
-      return res.status(500).json({ error });
-    }
-
-    // Delete the patient's devices from the patient_devices table
-    conn.query(
-      "DELETE FROM patient_devices WHERE patient_id = ?",
-      [patientId],
-      (error) => {
-        if (error) {
-          return res.status(500).json({ error });
-        }
-
-        // Delete the patient's notes from the patient_notes table
+  conn.query(
+    "Select * FROM patients WHERE id = ?",
+    [patientId],
+    (error, results) => {
+      if (error) {
+        throw error;
+      } else if (results.length === 0) {
+        return res.status(404).json({ message: "User not found" });
+      } else {
         conn.query(
-          "DELETE FROM patient_notes WHERE patient_id = ?",
-          [patientId],
-          (error) => {
+          "insert into patients_archive (idfrompatientstable, name, email, password, created_at, doctor_id, doctor_name) values (?, ?, ?, ?, ?, ?, ?)",
+          [
+            results[0].id,
+            results[0].name,
+            results[0].email,
+            results[0].password,
+            results[0].created_at,
+            results[0].doctor_id,
+            results[0].doctor_name,
+          ],
+          (error, results) => {
             if (error) {
               return res.status(500).json({ error });
-            }
-
-            // Delete the patient's details from the patient_details table
-            conn.query(
-              "DELETE FROM patient_details WHERE patient_id = ?",
-              [patientId],
-              (error) => {
-                if (error) {
-                  return res.status(500).json({ error });
-                }
-
-                // Delete the patient from the patient_doctor table
-                conn.query(
-                  "DELETE FROM patient_doctor WHERE patient_id = ?",
-                  [patientId],
-                  (error) => {
-                    if (error) {
-                      return res.status(500).json({ error });
-                    }
-
-                    // Return success response
-                    res.json({ message: "Patient Deleted Successfully" });
-                    // console.log(patientId)
+            } else {
+              conn.query(
+                "DELETE FROM patients WHERE id = ?",
+                [patientId],
+                (error) => {
+                  if (error) {
+                    return res.status(500).json({ error });
+                  } else {
+                    res
+                      .status(200)
+                      .json({ message: "Patient Deleted Successfully" });
                   }
-                );
-              }
-            );
+                }
+              );
+            }
           }
         );
+        // console.log(results[0].id);
+        // return res.status(200).json(results[0]);
       }
-    );
-  });
+    }
+  );
+
+  // conn.query("DELETE FROM patients WHERE id = ?", [patientId], (error) => {
+  //   if (error) {
+  //     return res.status(500).json({ error });
+  //   }
+
+  //   // Delete the patient's devices from the patient_devices table
+  //   conn.query(
+  //     "DELETE FROM patient_devices WHERE patient_id = ?",
+  //     [patientId],
+  //     (error) => {
+  //       if (error) {
+  //         return res.status(500).json({ error });
+  //       }
+
+  //       // Delete the patient's notes from the patient_notes table
+  //       conn.query(
+  //         "DELETE FROM patient_notes WHERE patient_id = ?",
+  //         [patientId],
+  //         (error) => {
+  //           if (error) {
+  //             return res.status(500).json({ error });
+  //           }
+
+  //           // Delete the patient's details from the patient_details table
+  //           conn.query(
+  //             "DELETE FROM patient_details WHERE patient_id = ?",
+  //             [patientId],
+  //             (error) => {
+  //               if (error) {
+  //                 return res.status(500).json({ error });
+  //               }
+
+  //               // Delete the patient from the patient_doctor table
+  //               conn.query(
+  //                 "DELETE FROM patient_doctor WHERE patient_id = ?",
+  //                 [patientId],
+  //                 (error) => {
+  //                   if (error) {
+  //                     return res.status(500).json({ error });
+  //                   }
+
+  //                   // Return success response
+  //                   res.json({ message: "Patient Deleted Successfully" });
+  //                   // console.log(patientId)
+  //                 }
+  //               );
+  //             }
+  //           );
+  //         }
+  //       );
+  //     }
+  //   );
+  // });
 };
 
 //  Get All The Patients of one Doctor
@@ -568,7 +692,7 @@ const delete_patient = async (req, res) => {
 const all_patients_of_one_doctor = async (req, res) => {
   // Get the doctor ID from the request
 
-   const doctor_id = req.user.id;
+  const doctor_id = req.user.id;
   //  console.log(doctor_id)
   // const id = req.params.id;
   // console.log(req.user);
@@ -593,14 +717,12 @@ const all_patients_of_one_doctor = async (req, res) => {
   // `;
 
   const query = `
-  SELECT patients.*,doctor_name, patient_devices.*, patient_notes.*,patient_details.*
+  SELECT patients.*, patients.id as pid,patient_details.date_of_birth
 FROM patients
-LEFT JOIN patient_devices ON patients.id = patient_devices.patient_id
-LEFT JOIN patient_notes ON patients.id = patient_notes.patient_id
 LEFT JOIN patient_details ON patients.id = patient_details.patient_id
 WHERE patients.doctor_id = ?
 LIMIT ? OFFSET ?;
-`
+`;
   const getTotalQuery = `
   SELECT COUNT(*) as total
   FROM patients
@@ -614,6 +736,11 @@ LIMIT ? OFFSET ?;
       if (error) {
         res.status(500).json({ error: error.message });
       } else {
+        results.forEach((key) => {
+          // console.log(key.password);
+          delete key.password;
+        });
+        // delete results.patients
         res.status(200).json({
           totalPatients,
           patients: results,
@@ -621,18 +748,15 @@ LIMIT ? OFFSET ?;
       }
     });
   });
-
-}
+};
 // Get One Patinet
 const get_one_patient = (req, res) => {
   const userId = req.params.id;
   // const query = `SELECT * FROM patients WHERE id = ${userId}`;
-  const query = `SELECT patients.*, patient_details.*,patient_devices.device_barcode
+  const query = `SELECT patients.*, patient_details.*
   FROM patients
   JOIN patient_details
   ON patients.id = patient_details.patient_id
-  JOIN patient_devices
-  ON patients.id = patient_devices.patient_id
   WHERE patients.id = ${userId}`;
   // console.log(userId)
   try {
@@ -643,13 +767,13 @@ const get_one_patient = (req, res) => {
       if (results.length === 0) {
         return res.status(404).json({ message: "User not found" });
       }
+      delete results[0].password;
       return res.status(200).json(results[0]);
     });
   } catch (error) {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
-
 
 //update_pass
 
@@ -811,6 +935,7 @@ const patient_search_by_name = (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
 //one patient details
 
 // const get_one_patient = (req, res) => {
@@ -888,6 +1013,7 @@ const sharepatientdata = (req, res) => {
     // html: `Please click this link to verify your email: <a href="http://localhost:3000/verify/${token}">Verify Email</a>`
   };
   transporter.sendMail(mailOptions);
+  return res.status(200).json({ msg: "Mail Sent" });
 };
 
 const add_notes = (req, res) => {
@@ -1099,14 +1225,15 @@ const addtotime = (req, res) => {
 
 // Logout for Patient
 
-// const patient_logout = (req, res) => {
-//   try {
-//     res.clearCookie("token");
-//     res.status(200).json({ message: "Logout successful" });
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
+const patient_logout = (req, res) => {
+  try {
+    res.clearCookie("token");
+    res.clearCookie("id");
+    res.status(200).json({ message: "Logout successful" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 //all patients of one doctor
 // const all_patients_of_one_doctor = (req, res) => {
@@ -1132,8 +1259,59 @@ const addtotime = (req, res) => {
 //     console.log(result);
 //   });
 // }
+const get_auth_token = (req, res) => {
+  var code = req.body.code;
+  var options = {
+    method: "POST",
+    url: "https://wbsapi.withings.net/v2/oauth2",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    form: {
+      action: "requesttoken",
+      client_id: `${process.env.client_ID_withings}`,
+      client_secret: `${process.env.secret_ID_withings}`,
+      grant_type: "authorization_code",
+      code: `${code}`,
+      redirect_uri: `${process.env.redirecturl_withings}`,
+    },
+  };
+  request(options, function (error, response) {
+    if (error) throw new Error(error);
+    // console.log(code);
+    // console.log(response.body);
+    return res.status(200).send(response.body);
+  });
+};
+
+const get_weight = (req, res) => {
+  var with_access_token = req.body.with_access_token;
+  var options = {
+    method: "POST",
+    url: "https://scalews.withings.com/measure",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${with_access_token}`,
+      Cookie:
+        "current_path_login=%3Fresponse_type%3Dcode%26client_id%3D188ad9ebf3c8bedad1ee8468b756ee4f4e1d0147c66146a8ef78e8d234345f27%26redirect_uri%3Dhttp%253A%252F%252F127.0.0.1%252F%26state%3D3UJ8Thq6d6Ce7EV%26scope%3Duser.metrics%252Cuser.activity%26b%3Dauthorize2; next_block_login=authorize2; next_workflow_login=oauth2_user; signin_authorize_state=06f68f9b2e; url_params=%3Fresponse_type%3Dcode%26client_id%3D188ad9ebf3c8bedad1ee8468b756ee4f4e1d0147c66146a8ef78e8d234345f27%26redirect_uri%3Dhttp%253A%252F%252F127.0.0.1%252F%26state%3D3UJ8Thq6d6Ce7EV%26scope%3Duser.metrics%252Cuser.activity%26b%3Dauthorize2",
+    },
+    form: {
+      action: "getmeas",
+      category: "1",
+      lastupdate: "0",
+      meastypes: "1",
+    },
+  };
+  request(options, function (error, response) {
+    if (error) throw new Error(error);
+    // console.log(response.body);
+    return res.status(200).send(response.body);
+  });
+};
 module.exports = {
   addtotime,
+  get_weight,
+  get_auth_token,
   new_patient,
   new_doctor,
   update_pass_func,
@@ -1148,9 +1326,10 @@ module.exports = {
   get_one_patient,
   patient_search_by_name,
   get_one_patient_devices,
+  all_patients_of_one_doctor,
   add_notes,
   sharepatientdata,
   get_one_patient_notes,
   get_one_patient_time,
-  // patient_logout
+  patient_logout,
 };

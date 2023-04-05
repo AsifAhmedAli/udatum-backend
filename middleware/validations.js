@@ -156,7 +156,7 @@ const validatePatient = [
     .isEmpty()
     .withMessage("Email is required")
     .isEmail()
-    .withMessage("Invalid email format"),
+    .withMessage("Invalid Email Format"),
   check("password").not().isEmpty().withMessage("Password is required"),
   check("device_barcode")
     .not()
@@ -175,7 +175,7 @@ const validateLogin = [
     .isEmpty()
     .withMessage("Email is required")
     .isEmail()
-    .withMessage("Invalid email format"),
+    .withMessage("Invalid Email Format"),
   check("password").not().isEmpty().withMessage("Password is required"),
 ];
 

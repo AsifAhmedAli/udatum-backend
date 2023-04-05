@@ -301,6 +301,27 @@ const get_all_chat_rooms_of_a_user = (req, res) => {
   );
 };
 
+const countchatroommembers = (req, res) => {
+  const chatroomID = req.params.id;
+  // const chatroomID = req.body;
+  // console.log(chatroomID);
+
+  conn.query(
+    "SELECT count(memberID) as pcount FROM chatroommembers WHERE chatroomID = ?",
+    [chatroomID],
+    (error, results, fields) => {
+      if (error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.status(200).json({
+          results,
+          // patients: results,
+        });
+      }
+    }
+  );
+};
+
 const get_all_messages_of_a_chatroom = (req, res) => {
   const chatroomID = req.params.id;
   conn.query(
@@ -348,4 +369,5 @@ module.exports = {
   newchatroom,
   get_all_chat_rooms_of_a_user,
   get_all_messages_of_a_chatroom,
+  countchatroommembers,
 };

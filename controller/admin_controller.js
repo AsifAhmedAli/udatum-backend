@@ -1,55 +1,145 @@
 const conn = require("../conn/conn");
 
-exports.verifyUser = async (req, res) => {
+const  verifyUser = async (req, res) => {
 
-    const user_id = req.params.id;
+    
     try {
-        const checkSql = "SELECT status1 FROM users WHERE id = ?";
-        const result = await conn.query(checkSql, [user_id]);
-        if (!result.length) {
-            return res.status(400).json({ msg: "User not found" });
-        }
-        if (result.status1 === 1) {
-            return res.status(400).json({ msg: "User already approved" });
-        }
-        const updateSql = "UPDATE users SET status1 = 1 WHERE id = ?";
-        await conn.query(updateSql, [user_id]);
-        res.status(200).json({ msg: "User approved successfully" });
+        const id = req.params.id;
+
+        // Check if user exists
+        conn.query('SELECT * FROM users WHERE id = ?', [id], (err, results) => {
+          if (err) {
+            // console.log(err);
+            res.status(500).json({message:err.message});
+          } else if (results.length === 0) {
+            res.status(404).json({message:`User ${id} not found`});
+          } else if (results[0].status1 === 1) {
+            res.status(400).json({message:`User ${id} has already been approved by admin`});
+          } else {
+            // Update User Status to 1 (approved)
+            conn.query('UPDATE users SET status1 = 1 WHERE id = ?', [id], (err, results) => {
+              if (err) {
+                // console.log(err);
+                res.status(500).json({message:err.message});
+              } else {
+                res.status(200).json({message:`User ${id} has been approved by admin`});
+              }
+            });
+          }
+        });
     } catch (error) {
-        console.log(error);
+        // console.log(error);
         res.status(500).json({error:error.message});
     }
 
-
-
-    //  const user_id = req.params.id;
-    // try {
-    //     const sql = "UPDATE users SET status1 = 1 WHERE id = ?";
-    //     await conn.query(sql, [user_id]);
-    //     res.status(200).json({ msg: "User approved successfully" });
-        
-    // } catch (error) {
-    //     console.log(error);
-    //     res.status(500).send({error:error.message});
-    // }
-
-    
-//     try {
-//         const { id } = req.params;
-//         const sql = "SELECT * FROM users WHERE id = ?";
-//         const user = await conn.query(sql, [id]);
-//         // console.log(user)
-//         if (!user) {
-//             return res.status(400).json({ message: "User not found" });
-//         }
-//         if (user.status1 === 1) {
-//             return res.status(400).json({ message: "User already verified" });
-//         }
-//         const updateSql = "UPDATE users SET status1 = 1, verified1 = 1 WHERE id = ?";
-//         await conn.query(updateSql, [id]);
-//         res.status(200).json({ message: "User verified successfully" });
-//     } catch (error) {
-//         console.log(error);
-//         res.status(500).json({error:error.message});
-//     }
 };
+
+// const get_all_doctors =  (req, res) => {
+//     // Pagination variables
+//   const page = parseInt(req.query.page) || 1;
+//   const limit = parseInt(req.query.limit) || 10;
+//   const offset = (page - 1) * limit;
+//     conn.query('SELECT * FROM users LIMIT ? OFFSET ?', [limit, offset], (err, results) => {
+//         if (err) {
+//         //   console.log(err);
+//           res.status(500).send('Server Error');
+//         } else if (results.length === 0) {
+//           res.status(404).send('No users found');
+//         } else {
+//           const users = results;
+      
+//           conn.query('SELECT COUNT(*) AS total FROM users', (err, result) => {
+//             if (err) {
+//               console.log(err);
+//               res.status(500).send('Server Error');
+//             } else {
+//               const total = result[0].total;
+//               const data = {
+//                 users,
+//                 totalUsers: total,
+//                 currentPage: page,
+//                 totalPages: Math.ceil(total / limit)
+//               };
+//               res.send(data);
+//             }
+//           });
+//         }
+//       });
+      
+//     }
+
+const get_all_doctors = (req, res) => {
+    // Pagination variables
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+  
+    conn.query('SELECT * FROM users LIMIT ? OFFSET ?', [limit, offset], (err, results) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({
+          success: false,
+          message: err.message
+        });
+      } else if (results.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'No doctors found'
+        });
+      } else {
+        const doctors = results;
+  
+        conn.query('SELECT COUNT(*) AS total FROM users', (err, result) => {
+          if (err) {
+            console.error(err);
+            return res.status(500).json({
+              success: false,
+              message: err.message
+            });
+          } else {
+            const total = result[0].total;
+            const data = {
+              doctors,
+              totalDoctors: total,
+              currentPage: page,
+              totalPages: Math.ceil(total / limit)
+            };
+            res.json({
+              success: true,
+              message: 'Successfully retrieved all doctors',
+              data: data
+            });
+          }
+        });
+      }
+    });
+  };
+
+  const block_doctor_account = (req, res) => {
+    const id = req.params.id;
+    
+    conn.query('UPDATE users SET status1 = 0 WHERE id = ?', [id], (err, result) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({
+          success: false,
+          message: 'Server Error'
+        });
+      } else if (result.affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      } else {
+        return res.status(200).json({
+          success: true,
+          message: 'User has been successfully blocked'
+        });
+      }
+    });
+  };
+  
+  
+
+
+module.exports = {verifyUser,get_all_doctors,block_doctor_account}

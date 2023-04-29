@@ -236,70 +236,71 @@ const doctor_login = async (req, res) => {
       const token = jwt.sign(
         payload,
         process.env.jwtSecret,
-        { expiresIn: 360000 },
+        { expiresIn: 10800 },
         (err, token) => {
           if (err) throw err;
           // Timestamp
-          var timestamp = Date.now();
-          // console.log(timestamp / 1000);
-          timestamp = parseInt(timestamp / 1000);
-          // console.log(timestamp);
-          // Use the CryptoJS
-          // console.log(timestamp);
-          var data =
-            "getnonce" + "," + process.env.client_ID_withings + "," + timestamp;
-          // console.log(
-          //   CryptoJS.HmacSHA256(data, process.env.secret_ID_withings)
-          // );
-          // console.log(process.env.secret_ID_withings);
-          signature = HMAC(data);
-          // var signature = CryptoJS.HmacSHA256(
-          //   data,
-          //   process.env.secret_ID_withings
-          // ).toString();
-          // console.log(process.env.client_ID_withings);
-          signature = signature.toString("hex");
-          // console.log(signature);
-          // Set the new environment variable
-          // pm.environment.set('timestamp', timestamp);
-          // pm.environment.set('signature', signature);
+          // var timestamp = Date.now();
+          // // console.log(timestamp / 1000);
+          // timestamp = parseInt(timestamp / 1000);
+          // // console.log(timestamp);
+          // // Use the CryptoJS
+          // // console.log(timestamp);
+          // var data =
+          //   "getnonce" + "," + process.env.client_ID_withings + "," + timestamp;
+          // // console.log(
+          // //   CryptoJS.HmacSHA256(data, process.env.secret_ID_withings)
+          // // );
+          // // console.log(process.env.secret_ID_withings);
+          // signature = HMAC(data);
+          // // var signature = CryptoJS.HmacSHA256(
+          // //   data,
+          // //   process.env.secret_ID_withings
+          // // ).toString();
+          // // console.log(process.env.client_ID_withings);
+          // signature = signature.toString("hex");
+          // // console.log(signature);
+          // // Set the new environment variable
+          // // pm.environment.set('timestamp', timestamp);
+          // // pm.environment.set('signature', signature);
 
-          var options = {
-            method: "POST",
-            url: "https://wbsapi.withings.net/v2/signature",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            form: {
-              action: "getnonce",
-              client_id: process.env.client_ID_withings,
-              timestamp: timestamp,
-              signature: signature,
-            },
-          };
-          request(options, function (error, response) {
-            if (error) throw new Error(error);
-            var resa = JSON.parse(response.body);
-            nonce = resa.body.nonce;
-            var state = "state";
-            var url = `https://account.withings.com/oauth2_user/authorize2?response_type=code&client_id=${process.env.client_ID_withings}&redirect_uri=${process.env.redirecturl_withings}&state=${state}&scope=user.metrics,user.activity`;
+          // var options = {
+          //   method: "POST",
+          //   url: "https://wbsapi.withings.net/v2/signature",
+          //   headers: {
+          //     "Content-Type": "application/x-www-form-urlencoded",
+          //   },
+          //   form: {
+          //     action: "getnonce",
+          //     client_id: process.env.client_ID_withings,
+          //     timestamp: timestamp,
+          //     signature: signature,
+          //   },
+          // };
+          // request(options, function (error, response) {
+          //   if (error) throw new Error(error);
+          //   var resa = JSON.parse(response.body);
+          //   nonce = resa.body.nonce;
+          //   var state = "state";
+          //   var url = `https://account.withings.com/oauth2_user/authorize2?response_type=code&client_id=${process.env.client_ID_withings}&redirect_uri=${process.env.redirecturl_withings}&state=${state}&scope=user.metrics,user.activity`;
 
-            res.set("Access-Control-Allow-Origin", "*");
-            res.set("Access-Control-Allow-Credentials", "true");
+          res.set("Access-Control-Allow-Origin", "*");
+          res.set("Access-Control-Allow-Credentials", "true");
 
-            res.cookie("token", token, { httpOnly: true });
-            // res.cookie("id", user.id, { httpOnly: true });
-            delete user.password;
-            res.status(200).json({
-              message: "User logged in successfully",
-              user,
-              token,
-              url,
-              nonce,
-            });
+          res.cookie("token", token, { httpOnly: true });
+          // res.cookie("id", user.id, { httpOnly: true });
+          delete user.password;
+          res.status(200).json({
+            message: "User logged in successfully",
+            user,
+            token,
+            // url,
+            // nonce,
           });
         }
       );
+      // }
+      // );
     });
   } catch (error) {
     // console.log(error);

@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const conn = require("../conn/conn");
 const upload = require("../middleware/multer.js");
-const { verifyToken } = require("../middleware/verifyToken.js");
+const { verifyToken, verifyToken1 } = require("../middleware/verifyToken.js");
 const user_controllers = require("../controller/all_users");
 const admin_controller = require("../controller/admin_controller");
 const contactform = require("../controller/contact_form");
@@ -35,6 +35,7 @@ router.post(
   validate,
   user_controllers.doctor_login
 );
+
 router.get("/doctor-logout", user_controllers.doctor_logout);
 router.get("/get-one-doctor/:id", verifyToken, user_controllers.get_one_doctor);
 router.post(
@@ -89,9 +90,23 @@ router.get("/patient-logout", user_controllers.patient_logout);
 router.get("/countchatroommembers/:id", msgs_controller.countchatroommembers);
 
 // admin
-router.put("/admin/approve/:id",verifyToken, admin_controller.verifyUser);
-router.get("/admin/get-all-doctors",verifyToken, admin_controller.get_all_doctors);
-router.put("/admin/block-doctor-account/:id",verifyToken, admin_controller.block_doctor_account);
+router.post(
+  "/admin-login",
+  validateLogin,
+  validate,
+  admin_controller.admin_login
+);
+router.put("/admin/approve/:id", verifyToken, admin_controller.verifyUser);
+router.get(
+  "/admin/get-all-doctors",
+  verifyToken1,
+  admin_controller.get_all_doctors
+);
+router.put(
+  "/admin/block-doctor-account/:id",
+  verifyToken1,
+  admin_controller.block_doctor_account
+);
 // end admin
 router.post(
   "/patient-registration",
@@ -108,6 +123,11 @@ router.get(
   user_controllers.all_patients_of_one_doctor
 );
 
+router.get(
+  "/all-patients-of-one-doctor/:id",
+  // verifyToken1,
+  admin_controller.all_patients_of_one_doctor
+);
 router.post(
   "/new-contact-form",
   validateContactForm,

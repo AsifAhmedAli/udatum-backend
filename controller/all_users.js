@@ -392,18 +392,8 @@ const get_one_patient_time = (req, res) => {
 //new registration of patients controller
 
 const new_patient = (req, res) => {
-  const {
-    name,
-    date_of_birth,
-    email,
-    password,
-    medical_condition,
-    low_threshold,
-    high_threshold,
-    device_name,
-    device_barcode,
-    notes,
-  } = req.body;
+  const { name, date_of_birth, email, password, medical_condition, notes } =
+    req.body;
 
   const doctorId = req.body.doctorId || req.user.id;
   const doctorName = req.user.name;
@@ -421,19 +411,6 @@ const new_patient = (req, res) => {
       }
 
       const patientId = results.insertId;
-      const insertPatientDeviceQuery = `INSERT INTO patient_devices (patient_id, device_barcode, device_name) VALUES (?,?,?)`;
-      conn.query(
-        insertPatientDeviceQuery,
-        [patientId, device_barcode, device_name],
-        (error, results) => {
-          if (error) {
-            return res.status(500).json({
-              success: false,
-              message: error.message,
-            });
-          }
-        }
-      );
 
       // insert patient-doctor relationship into patient_doctor table
 
@@ -459,16 +436,10 @@ const new_patient = (req, res) => {
         }
       );
 
-      const insertPatientDetailsQuery = `INSERT INTO patient_details (patient_id, date_of_birth, medical_condition, low_threshold, high_threshold) VALUES (?,?,?,?,?)`;
+      const insertPatientDetailsQuery = `INSERT INTO patient_details (patient_id, date_of_birth, medical_condition) VALUES (?,?,?)`;
       conn.query(
         insertPatientDetailsQuery,
-        [
-          patientId,
-          date_of_birth,
-          medical_condition,
-          low_threshold,
-          high_threshold,
-        ],
+        [patientId, date_of_birth, medical_condition],
         (error, results) => {
           if (error) {
             return res.status(500).json({
@@ -519,26 +490,13 @@ const edit_patient = async (req, res) => {
       email,
       patientId,
     ]); // update patient_details table if data exists
-    if (
-      req.body.low_threshold ||
-      req.body.high_threshold ||
-      req.body.low_threshold ||
-      req.body.high_threshold
-    ) {
+    if (req.body.date_of_birth || req.body.medical_condition) {
       const date_of_birth = req.body.date_of_birth || null;
       const medical_condition = req.body.medical_condition || null;
-      const low_threshold = req.body.low_threshold || null;
-      const high_threshold = req.body.high_threshold || null;
 
       await conn.query(
-        "UPDATE patient_details SET date_of_birth = ? , medical_condition = ?, low_threshold = ?, high_threshold = ? WHERE patient_id = ?",
-        [
-          date_of_birth,
-          medical_condition,
-          low_threshold,
-          high_threshold,
-          patientId,
-        ]
+        "UPDATE patient_details SET date_of_birth = ? , medical_condition = ? WHERE patient_id = ?",
+        [date_of_birth, medical_condition, patientId]
       );
     }
 
@@ -1309,10 +1267,67 @@ const get_weight = (req, res) => {
     return res.status(200).send(response.body);
   });
 };
+
+const order_device = (req, res) => {
+  const did = req.body.did;
+  const devicetype = req.body.devicetype;
+  const numberofdevices = req.body.numberofdevices;
+  const address = req.body.address;
+  const selectQuery = `SELECT * FROM  ordered_devices WHERE devicetype = ? and did = ? and numberofdevices = ? and statusoforder = "Pending"`;
+  conn.query(
+    selectQuery,
+    [devicetype, did, numberofdevices],
+    (error, results) => {
+      // console.log(results);
+      if (error) throw error;
+      if (results.length > 0) {
+        return res.status(401).json({ message: "Already Ordered" });
+      } else {
+        const insertQuery = `INSERT INTO ordered_devices (devicetype, did, numberofdevices, address) VALUES (?, ?, ?, ?)`;
+        conn.query(
+          insertQuery,
+          [devicetype, did, numberofdevices, address],
+          (error, results1) => {
+            if (error) {
+              return res.status(500).json({
+                success: false,
+                message: error.message,
+              });
+            } else {
+              return res.status(200).json({
+                success: true,
+                message: "Ordered Placed Successfully",
+              });
+            }
+          }
+        );
+      }
+    }
+  );
+};
+//get previous device orders
+const getpreviousorders = (req, res) => {
+  const userId = req.params.id;
+  const query = `SELECT * FROM ordered_devices WHERE did = ${userId}`;
+  try {
+    conn.query(query, (err, results) => {
+      if (err) {
+        throw err;
+      }
+      if (results.length === 0) {
+        return res.status(404).json({ message: "No Data" });
+      }
+      return res.status(200).json(results);
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 module.exports = {
   addtotime,
   get_weight,
   get_auth_token,
+  getpreviousorders,
   new_patient,
   new_doctor,
   update_pass_func,
@@ -1333,4 +1348,5 @@ module.exports = {
   get_one_patient_notes,
   get_one_patient_time,
   patient_logout,
+  order_device,
 };

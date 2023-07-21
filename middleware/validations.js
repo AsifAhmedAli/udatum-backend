@@ -158,10 +158,6 @@ const validatePatient = [
     .isEmail()
     .withMessage("Invalid Email Format"),
   check("password").not().isEmpty().withMessage("Password is required"),
-  check("device_barcode")
-    .not()
-    .isEmpty()
-    .withMessage("Device barcode is required"),
   check("notes").not().isEmpty().withMessage("Patient notes required"),
   check("date_of_birth").not().isEmpty().withMessage("Date of birth required"),
   check("medical_condition")

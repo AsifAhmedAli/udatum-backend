@@ -102,6 +102,29 @@ router.get(
   verifyToken1,
   admin_controller.get_all_doctors
 );
+
+router.get(
+  "/admin/get-one-doctor-by-admin/:id",
+  verifyToken1,
+  admin_controller.get_one_doctor1
+);
+
+router.post(
+  "/admin/update-order-status/:id",
+  verifyToken1,
+  admin_controller.update_order_status
+);
+router.get(
+  "/admin/get-all-orders",
+  verifyToken1,
+  admin_controller.getallorders
+);
+
+router.get(
+  "/get-pervious-orders/:id",
+  verifyToken,
+  user_controllers.getpreviousorders
+);
 router.put(
   "/admin/block-doctor-account/:id",
   verifyToken1,
@@ -114,6 +137,13 @@ router.post(
   validate,
   verifyToken,
   user_controllers.new_patient
+);
+
+router.post(
+  "/order-device",
+  validate,
+  verifyToken,
+  user_controllers.order_device
 );
 router.put("/update-password", verifyToken, user_controllers.update_pass_func);
 router.put("/update-name", verifyToken, user_controllers.update_name);

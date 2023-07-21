@@ -266,10 +266,66 @@ WHERE patients.doctor_id = ?;
     });
   });
 };
+
+//get previous device orders
+const getallorders = (req, res) => {
+  const query = `SELECT * FROM ordered_devices`;
+  try {
+    conn.query(query, (err, results) => {
+      if (err) {
+        throw err;
+      }
+      if (results.length === 0) {
+        return res.status(404).json({ message: "No Data" });
+      }
+      return res.status(200).json(results);
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const get_one_doctor1 = (req, res) => {
+  const id = req.params.id;
+  const query = `SELECT name FROM users where id = ${id}`;
+  try {
+    conn.query(query, (err, results) => {
+      if (err) {
+        throw err;
+      }
+      if (results.length === 0) {
+        return res.status(404).json({ message: "No User Found" });
+      }
+      return res.status(200).json(results);
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const update_order_status = (req, res) => {
+  const id = req.params.id;
+  const updated_status = req.body.status;
+  // Check if old password is correct
+  conn.query(
+    "UPDATE ordered_devices SET statusoforder = ? WHERE id = ?",
+    [updated_status, id],
+    (error, results) => {
+      if (error) {
+        return res.status(500).send({ message: error.message });
+      }
+
+      res.status(200).send({ message: "Order Updated Successfully" });
+    }
+  );
+};
 module.exports = {
   verifyUser,
+  getallorders,
+  get_one_doctor1,
   get_all_doctors,
   block_doctor_account,
   admin_login,
   all_patients_of_one_doctor,
+  update_order_status,
 };

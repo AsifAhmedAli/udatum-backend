@@ -6,11 +6,17 @@ const fs = require("fs");
 const path = require("path");
 var request = require("request");
 const crypto = require("crypto");
-const { json } = require("express");
-
+const { response } = require("express");
+// const { json } = require("express");
+const stripe = require("stripe")(
+  "sk_test_51Nrjg7CgXt0dXLeDr3UMnGYpg03Dh3tMQ24PR1f8WIo84no3JCVB45rtpUmVZyuV9vN3rvwA8E0stGXPTJ254mso006ZezGd6X"
+);
 // const { time } = require("console");
 //new registration doctor-controller
-
+function HMAC(data) {
+  key = process.env.secret_ID_withings;
+  return crypto.createHmac("sha256", key).update(data).digest();
+}
 const new_doctor = async (req, res) => {
   const { name, email, password } = req.body;
   try {
@@ -185,10 +191,6 @@ const verify_email = async (req, res) => {
 //  Login Controler for Doctor
 
 const doctor_login = async (req, res) => {
-  function HMAC(data) {
-    key = process.env.secret_ID_withings;
-    return crypto.createHmac("sha256", key).update(data).digest();
-  }
   // function encrypt(data) {
   //   // console.log(data);
   //   var signature = CryptoJS.HmacSHA256(
@@ -392,15 +394,24 @@ const get_one_patient_time = (req, res) => {
 //new registration of patients controller
 
 const new_patient = (req, res) => {
-  const { name, date_of_birth, email, password, medical_condition, notes } =
-    req.body;
+  const {
+    name,
+    date_of_birth,
+    email,
+    password,
+    medical_condition,
+    notes,
+    weight,
+    height,
+    gender,
+  } = req.body;
 
   const doctorId = req.body.doctorId || req.user.id;
   const doctorName = req.user.name;
-  const insertPatientQuery = `INSERT INTO patients (name, email, password,doctor_id,doctor_name) VALUES (?,?,?,?,?)`;
+  const insertPatientQuery = `INSERT INTO patients (name, email, password,doctor_id,doctor_name, weight, height, gender) VALUES (?,?,?,?,?,?,?,?)`;
   conn.query(
     insertPatientQuery,
-    [name, email, password, doctorId, doctorName],
+    [name, email, password, doctorId, doctorName, weight, height, gender],
     (error, results) => {
       if (error) {
         return res.status(500).json({
@@ -1273,34 +1284,22 @@ const order_device = (req, res) => {
   const devicetype = req.body.devicetype;
   const numberofdevices = req.body.numberofdevices;
   const address = req.body.address;
-  const selectQuery = `SELECT * FROM  ordered_devices WHERE devicetype = ? and did = ? and numberofdevices = ? and statusoforder = "Pending"`;
+
+  const insertQuery = `INSERT INTO ordered_devices (devicetype, did, numberofdevices, address) VALUES (?, ?, ?, ?)`;
   conn.query(
-    selectQuery,
-    [devicetype, did, numberofdevices],
-    (error, results) => {
-      // console.log(results);
-      if (error) throw error;
-      if (results.length > 0) {
-        return res.status(401).json({ message: "Already Ordered" });
+    insertQuery,
+    [devicetype, did, numberofdevices, address],
+    (error, results1) => {
+      if (error) {
+        return res.status(500).json({
+          success: false,
+          message: error.message,
+        });
       } else {
-        const insertQuery = `INSERT INTO ordered_devices (devicetype, did, numberofdevices, address) VALUES (?, ?, ?, ?)`;
-        conn.query(
-          insertQuery,
-          [devicetype, did, numberofdevices, address],
-          (error, results1) => {
-            if (error) {
-              return res.status(500).json({
-                success: false,
-                message: error.message,
-              });
-            } else {
-              return res.status(200).json({
-                success: true,
-                message: "Ordered Placed Successfully",
-              });
-            }
-          }
-        );
+        return res.status(200).json({
+          success: true,
+          message: "Ordered Placed Successfully",
+        });
       }
     }
   );
@@ -1323,11 +1322,133 @@ const getpreviousorders = (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+const stripe_call = async (req, res) => {
+  const quantity = req.body.numberofdevices;
+  const devicetype = req.body.devicetype;
+  const did = req.body.did;
+  const address = req.body.address;
+  // console.log(quantity);
+  const session = await stripe.checkout.sessions.create({
+    line_items: [
+      {
+        // Provide the exact Price ID (for example, pr_1234) of the product you want to sell
+        price: "price_1NsiCBCgXt0dXLeD1AaAH43E",
+        quantity: quantity,
+      },
+    ],
+    mode: "payment",
+    success_url: `${process.env.frontend_URL}/doctor/success.html?quantity=${quantity}&devicetype=${devicetype}&did=${did}&address=${address}`,
+    cancel_url: `${process.env.frontend_URL}/doctor/cancel.html`,
+  });
+  // return res.status(200).json({ msg: "Done" });
+  // console.log(session.url);
+  return res.status(200).json({ url: session.url });
+  // res.redirect(303, session.url);
+};
+
+const activate_request = (req, res) => {
+  const user_id = req.body.pid;
+  const user_name = req.body.name;
+  const user_email = req.body.email;
+  const user_weight = req.body.weight;
+  const user_height = req.body.height;
+  const user_gender = req.body.gender;
+  const mac_address = req.body.mac_address;
+  var short_name = "";
+  for (var i = 0; i < 3; i++) {
+    short_name += user_name[i];
+  }
+  if (user_gender == "male" || user_gender == "Male") {
+    const user_gender1 = 0;
+  } else if (
+    user_gender == "female" ||
+    user_gender == "Female" ||
+    user_gender == "woman" ||
+    user_gender == "Woman"
+  ) {
+    const user_gender1 = 1;
+  } else {
+    const user_gender1 = 0;
+  }
+  const user_bday = req.body.bday;
+  const user_bday1 = Math.floor(new Date(user_bday).getTime() / 1000);
+
+  // console.log(user_bday1);
+  var timestamp = Date.now();
+  // console.log(timestamp / 1000);
+  timestamp = parseInt(timestamp / 1000);
+  // console.log(timestamp);
+  // Use the CryptoJS
+  // console.log(timestamp);
+  var data =
+    "getnonce" + "," + process.env.client_ID_withings + "," + timestamp;
+  signature = HMAC(data);
+  signature = signature.toString("hex");
+  // console.log(signature);
+  var options = {
+    method: "POST",
+    url: "https://wbsapi.withings.net/v2/signature",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    form: {
+      action: "getnonce",
+      client_id: process.env.client_ID_withings,
+      timestamp: timestamp,
+      signature: signature,
+    },
+  };
+  request(options, function (error, response) {
+    if (error) throw new Error(error);
+    var resa = JSON.parse(response.body);
+    nonce = resa.body.nonce;
+    console.log(nonce);
+
+    const new_options = {
+      action: "activate",
+      client_id: process.env.client_ID_withings,
+      nonce: nonce,
+      signature: signature,
+      mailingpref: "yes",
+      birthdate: user_bday1,
+      measures: [
+        {
+          value: user_height,
+          unit: 0,
+          type: 4,
+        },
+        {
+          value: user_weight,
+          unit: 0,
+          type: 1,
+        },
+      ],
+      gender: user_gender1,
+      preflang: "en_US",
+      unit_pref: {},
+      email: user_email,
+      timezone: "America/New_York",
+      shortname: short_name,
+      external_id: user_id,
+      mac_addresses: mac_address,
+    };
+    res.status(200).json({ res: "success" });
+    // var state = "state";
+  });
+  // Set the new environment variable
+  // pm.environment.set('timestamp', timestamp);
+  // pm.environment.set('signature', signature);
+  // console.log(
+  //   user_id + user_name + user_email + user_weight + user_height + user_gender
+  // );
+};
 module.exports = {
   addtotime,
   get_weight,
   get_auth_token,
   getpreviousorders,
+  stripe_call,
   new_patient,
   new_doctor,
   update_pass_func,
@@ -1349,4 +1470,5 @@ module.exports = {
   get_one_patient_time,
   patient_logout,
   order_device,
+  activate_request,
 };

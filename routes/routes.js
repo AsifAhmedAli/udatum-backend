@@ -80,6 +80,12 @@ router.put(
   verifyToken,
   user_controllers.edit_patient
 );
+
+router.post(
+  "/activate-request/",
+  verifyToken,
+  user_controllers.activate_request
+);
 router.delete(
   "/patient-delete/:id",
   verifyToken,
@@ -96,7 +102,7 @@ router.post(
   validate,
   admin_controller.admin_login
 );
-router.put("/admin/approve/:id", verifyToken, admin_controller.verifyUser);
+router.put("/admin/approve/:id", verifyToken1, admin_controller.verifyUser);
 router.get(
   "/admin/get-all-doctors",
   verifyToken1,
@@ -109,6 +115,7 @@ router.get(
   admin_controller.get_one_doctor1
 );
 
+router.post("/create-checkout-session", user_controllers.stripe_call);
 router.post(
   "/admin/update-order-status/:id",
   verifyToken1,

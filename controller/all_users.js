@@ -1,12 +1,14 @@
 const conn = require("../conn/conn");
 const jwt = require("jsonwebtoken");
+const util = require('util');
 // const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const fs = require("fs");
+const request1 = util.promisify(require('request'));
 const path = require("path");
 var request = require("request");
 const crypto = require("crypto");
-const { response } = require("express");
+const { response, json } = require("express");
 // const { json } = require("express");
 const stripe = require("stripe")(
   "sk_test_51Nrjg7CgXt0dXLeDr3UMnGYpg03Dh3tMQ24PR1f8WIo84no3JCVB45rtpUmVZyuV9vN3rvwA8E0stGXPTJ254mso006ZezGd6X"
@@ -242,8 +244,104 @@ const doctor_login = async (req, res) => {
         (err, token) => {
           if (err) throw err;
           // Timestamp
-          // var timestamp = Date.now();
-          // // console.log(timestamp / 1000);
+          res.set("Access-Control-Allow-Origin", "*");
+          res.set("Access-Control-Allow-Credentials", "true");
+
+          res.cookie("token", token, { httpOnly: true });
+          // res.cookie("id", user.id, { httpOnly: true });
+          delete user.password;
+          res.status(200).json({
+            message: "User logged in successfully",
+            user,
+            token,
+            // url,
+            // nonce,
+          });
+          // });
+        }
+      );
+      // }
+      // );
+    });
+  } catch (error) {
+    // console.log(error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const get_url = (req, res) => {
+  var timestamp = Date.now();
+  // console.log(timestamp / 1000);
+  timestamp = parseInt(timestamp / 1000);
+  // console.log(timestamp);
+  // Use the CryptoJS
+  // console.log(timestamp);
+  var data =
+    "getnonce" + "," + process.env.client_ID_withings + "," + timestamp;
+  // console.log(
+  //   CryptoJS.HmacSHA256(data, process.env.secret_ID_withings)
+  // );
+  // console.log(process.env.secret_ID_withings);
+  signature = HMAC(data);
+  // var signature = CryptoJS.HmacSHA256(
+  //   data,
+  //   process.env.secret_ID_withings
+  // ).toString();
+  // console.log(process.env.client_ID_withings);
+  signature = signature.toString("hex");
+  // console.log(signature);
+  // Set the new environment variable
+  // pm.environment.set('timestamp', timestamp);
+  // pm.environment.set('signature', signature);
+
+  var options = {
+    method: "POST",
+    url: "https://wbsapi.us.withingsmed.net/v2/signature",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    form: {
+      action: "getnonce",
+      client_id: process.env.client_ID_withings,
+      timestamp: timestamp,
+      signature: signature,
+    },
+  };
+  request(options, function (error, response) {
+    if (error) throw new Error(error);
+    var resa = JSON.parse(response.body);
+    nonce = resa.body.nonce;
+    var state = "state";
+    var url = `https://account.withings.com/oauth2_user/authorize2?response_type=code&client_id=${process.env.client_ID_withings}&redirect_uri=${process.env.redirecturl_withings}&state=${state}&scope=user.metrics,user.activity`;
+    return res.status(200).json({ url, nonce });
+  });
+};
+const safedata = (req, res) => {
+  const did = req.body.did;
+  const cid = req.body.cid;
+  const csecret = req.body.csecret;
+  // console.log(did);
+  // console.log(cid);
+  // console.log(csecret);
+  conn.query(
+    "select * from withings_account_data where did = ?",
+    [did],
+    (error, results) => {
+      if (error) {
+        return res.status(500).json({ message: error.message });
+      }
+      if (results.length > 0) {
+        return res.status(200).json({ msg: "Account Already Attached" });
+      }
+      conn.query(
+        "INSERT into withings_account_data (did, client_id, client_secret) values (?,?,?)",
+        [did, cid, csecret],
+        (error, results) => {
+          if (error) {
+            return res.status(500).json({ message: error.message });
+          }
+          var timestamp = Date.now();
+          // console.log(timestamp / 1000);
           // timestamp = parseInt(timestamp / 1000);
           // // console.log(timestamp);
           // // Use the CryptoJS
@@ -268,7 +366,7 @@ const doctor_login = async (req, res) => {
 
           // var options = {
           //   method: "POST",
-          //   url: "https://wbsapi.withings.net/v2/signature",
+          //   url: "https://wbsapi.us.withingsmed.net/v2/signature",
           //   headers: {
           //     "Content-Type": "application/x-www-form-urlencoded",
           //   },
@@ -286,30 +384,32 @@ const doctor_login = async (req, res) => {
           //   var state = "state";
           //   var url = `https://account.withings.com/oauth2_user/authorize2?response_type=code&client_id=${process.env.client_ID_withings}&redirect_uri=${process.env.redirecturl_withings}&state=${state}&scope=user.metrics,user.activity`;
 
-          res.set("Access-Control-Allow-Origin", "*");
-          res.set("Access-Control-Allow-Credentials", "true");
-
-          res.cookie("token", token, { httpOnly: true });
-          // res.cookie("id", user.id, { httpOnly: true });
-          delete user.password;
-          res.status(200).json({
-            message: "User logged in successfully",
-            user,
-            token,
-            // url,
-            // nonce,
-          });
+          // });
+          return res.status(200).json({ msg: "Data Added" });
         }
       );
-      // }
-      // );
-    });
-  } catch (error) {
-    // console.log(error);
-    res.status(500).json({ error: error.message });
-  }
+    }
+  );
+
+  // return res.status(200);
 };
 
+const get_cid_csecret = (req, res) => {
+  const did = req.params.did;
+  conn.query(
+    "select * from withings_account_data where did = ?",
+    [did],
+    (err, result) => {
+      if (err) {
+        return res.status(500).json({ msg: err });
+      }
+      if (result.length == 0) {
+        return res.status(200).json({ msg: "Not Found" });
+      }
+      return res.status(200).json({ msg: result });
+    }
+  );
+};
 // Logout for Doctor
 
 const doctor_logout = (req, res) => {
@@ -1233,7 +1333,7 @@ const get_auth_token = (req, res) => {
   var code = req.body.code;
   var options = {
     method: "POST",
-    url: "https://wbsapi.withings.net/v2/oauth2",
+    url: "https://wbsapi.us.withingsmed.net/v2/oauth2",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },
@@ -1277,6 +1377,62 @@ const get_weight = (req, res) => {
     // console.log(response.body);
     return res.status(200).send(response.body);
   });
+};
+
+const get_blood_pressure = async (req, res) => {
+  try {
+    const with_access_token = req.body.with_access_token;
+    const pid = req.body.pid;
+    const currentTimestampInSeconds = Math.floor(Date.now() / 1000);
+
+    // Promisify the conn.query method
+    const queryAsync = util.promisify(conn.query).bind(conn);
+
+    const results1 = await queryAsync("select * from last_fetched_data where pid = ? and device_type = ?", [pid, "blood pressure"]);
+
+    if (results1.length === 0) {
+      await queryAsync("insert into last_fetched_data (pid, device_type, last_update_unix_timestamp) values (?, ?, ?)", [pid, "blood pressure", currentTimestampInSeconds]);
+
+      return res.status(200).json({msg: "reload"});
+    }
+        // console.log(results1)
+        var lastupdate = results1[0].last_update_unix_timestamp; 
+        var options = {
+          method: "POST",
+          url: "https://wbsapi.us.withingsmed.net/measure",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: `Bearer ${with_access_token}`,
+            Cookie:
+              "current_path_login=%3Fresponse_type%3Dcode%26client_id%3D188ad9ebf3c8bedad1ee8468b756ee4f4e1d0147c66146a8ef78e8d234345f27%26redirect_uri%3Dhttp%253A%252F%252F127.0.0.1%252F%26state%3D3UJ8Thq6d6Ce7EV%26scope%3Duser.metrics%252Cuser.activity%26b%3Dauthorize2; next_block_login=authorize2; next_workflow_login=oauth2_user; signin_authorize_state=06f68f9b2e; url_params=%3Fresponse_type%3Dcode%26client_id%3D188ad9ebf3c8bedad1ee8468b756ee4f4e1d0147c66146a8ef78e8d234345f27%26redirect_uri%3Dhttp%253A%252F%252F127.0.0.1%252F%26state%3D3UJ8Thq6d6Ce7EV%26scope%3Duser.metrics%252Cuser.activity%26b%3Dauthorize2",
+          },
+          form: {
+            action: "getmeas",
+            category: "1",
+            lastupdate: lastupdate,
+            meastypes: "11",
+          },
+        };
+        var response2 = await request1(options);
+        response2 = JSON.parse(response2.body);
+        response2.body.measuregrps.forEach(async element => {
+          element.measures.forEach(async element1 => {
+            await queryAsync("insert into blood_pressure_records (pid, dateofmeasurement, value) values (?, ?, ?)", [pid, element.created, element1.value]);
+          });
+        });
+        // console.log([0].[0].value);
+        await queryAsync("update last_fetched_data set last_update_unix_timestamp = ? where pid = ? and device_type = ?", [currentTimestampInSeconds, pid, "blood pressure"]);
+        var endresult = await queryAsync("select * from blood_pressure_records where pid = ? order by dateofmeasurement desc limit 15", [pid]);
+        return res.status(200).json({data: endresult});
+        
+
+
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
 };
 
 const order_device = (req, res) => {
@@ -1351,47 +1507,30 @@ const activate_request = (req, res) => {
   const user_id = req.body.pid;
   const user_name = req.body.name;
   const user_email = req.body.email;
-  const user_weight = req.body.weight;
-  const user_height = req.body.height;
+  const device_type = req.body.device_type;
   const user_gender = req.body.gender;
   const mac_address = req.body.mac_address;
+  const user_gender1 = 0;
   var short_name = "";
   for (var i = 0; i < 3; i++) {
     short_name += user_name[i];
   }
-  if (user_gender == "male" || user_gender == "Male") {
-    const user_gender1 = 0;
-  } else if (
-    user_gender == "female" ||
-    user_gender == "Female" ||
-    user_gender == "woman" ||
-    user_gender == "Woman"
-  ) {
-    const user_gender1 = 1;
-  } else {
-    const user_gender1 = 0;
-  }
+
   const user_bday = req.body.bday;
   const user_bday1 = Math.floor(new Date(user_bday).getTime() / 1000);
-
-  // console.log(user_bday1);
+ 
   var timestamp = Date.now();
-  // console.log(timestamp / 1000);
+
   timestamp = parseInt(timestamp / 1000);
-  // console.log(timestamp);
-  // Use the CryptoJS
-  // console.log(timestamp);
+
   var data =
     "getnonce" + "," + process.env.client_ID_withings + "," + timestamp;
   signature = HMAC(data);
   signature = signature.toString("hex");
-  // console.log(signature);
   var options = {
     method: "POST",
-    url: "https://wbsapi.withings.net/v2/signature",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
+    url: "https://wbsapi.us.withingsmed.net/v2/signature",
+
     form: {
       action: "getnonce",
       client_id: process.env.client_ID_withings,
@@ -1403,46 +1542,237 @@ const activate_request = (req, res) => {
     if (error) throw new Error(error);
     var resa = JSON.parse(response.body);
     nonce = resa.body.nonce;
-    console.log(nonce);
 
-    const new_options = {
-      action: "activate",
-      client_id: process.env.client_ID_withings,
-      nonce: nonce,
-      signature: signature,
-      mailingpref: "yes",
-      birthdate: user_bday1,
-      measures: [
-        {
-          value: user_height,
-          unit: 0,
-          type: 4,
-        },
-        {
-          value: user_weight,
-          unit: 0,
-          type: 1,
-        },
-      ],
-      gender: user_gender1,
-      preflang: "en_US",
-      unit_pref: {},
-      email: user_email,
-      timezone: "America/New_York",
-      shortname: short_name,
-      external_id: user_id,
-      mac_addresses: mac_address,
+    var data1 = "activate" + "," + process.env.client_ID_withings + "," + nonce;
+    signature1 = HMAC(data1);
+    signature1 = signature1.toString("hex");
+
+    var options1 = {
+      method: "POST",
+      url: "https://wbsapi.us.withingsmed.net/v2/user",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      form: {
+        action: "activate",
+        client_id: process.env.client_ID_withings,
+        nonce: nonce,
+        signature: signature1,
+        mailingpref: 1,
+        birthdate: user_bday1,
+        measures: JSON.stringify([
+          {
+            value: 180,
+            unit: -2,
+            type: 4,
+          },
+          {
+            value: 8000,
+            unit: -2,
+            type: 1,
+          },
+        ]),
+        gender: user_gender1,
+        preflang: "en_US",
+        unit_pref: JSON.stringify({
+          weight: 1,
+          height: 6,
+          distance: 6,
+          temperature: 11,
+        }),
+        email: user_email,
+        timezone: "America/New_York",
+        shortname: short_name,
+        external_id: user_id,
+        mac_addresses: [mac_address],
+      },
     };
-    res.status(200).json({ res: "success" });
-    // var state = "state";
+    request(options1, function (error, response) {
+      if (error) throw new Error(error);
+      var resa1 = JSON.parse(response.body);
+
+      conn.query("select * from patient_devices where patient_id = ? and device_name = ?", [user_id, device_type], (error, results1) => {
+        if (error) {
+          return res.status(500).json({
+            success: false,
+            message: error.message,
+          });
+        }
+        if(results1.length > 0){
+          return res.status(200).json({msg: 'Blood Pressure device for this patient is already added and activated'});
+        }
+        const insertQuery = `INSERT INTO patient_devices (patient_id, device_barcode, device_name) VALUES (?, ?, ?)`;
+        conn.query(insertQuery, [user_id, mac_address, device_type], (error, results1) => {
+          if (error) {
+            return res.status(500).json({
+              success: false,
+              message: error.message,
+            });
+          } else {
+            return res.status(200).json({ res: "success", resa1 });
+          }
+        });
+      });
+    });
   });
-  // Set the new environment variable
-  // pm.environment.set('timestamp', timestamp);
-  // pm.environment.set('signature', signature);
-  // console.log(
-  //   user_id + user_name + user_email + user_weight + user_height + user_gender
-  // );
+
 };
+
+const activation_token = (req, res) =>{
+
+  const user_id = req.body.pid;
+  const device_type = req.body.device_type;
+  const query = `SELECT patients.*, patient_details.*
+  FROM patients
+  JOIN patient_details
+  ON patients.id = patient_details.patient_id
+  WHERE patients.id = ${user_id}`;
+  // console.log(userId)
+  try {
+    conn.query(query, (err, results) => {
+      if (err) {
+        throw err;
+      }
+      if (results.length === 0) {
+
+        return res.status(404).json({ message: "User not found" });
+      }
+      const query1 = `SELECT * from  patient_devices where patient_id = ${user_id} and device_name = ?`;
+      // console.log(userId)
+     
+        conn.query(query1, [device_type], (err, results1) => {
+          if (err) {
+            throw err;
+          }
+          if (results.length === 0) {
+            return res.status(404).json({ message: "Device not found" });
+          }
+          const user_name = results[0].name;
+          const user_email = results[0].email;
+          const mac_address = results1[0].device_barcode;
+          const user_gender1 = 0;
+          var short_name = "";
+          for (var i = 0; i < 3; i++) {
+            short_name += user_name[i];
+          }
+        
+          const user_bday = results[0].date_of_birth;
+          const user_bday1 = Math.floor(new Date(user_bday).getTime() / 1000);
+
+    var timestamp = Date.now();
+  
+    timestamp = parseInt(timestamp / 1000);
+  
+    var data =
+      "getnonce" + "," + process.env.client_ID_withings + "," + timestamp;
+    signature = HMAC(data);
+    signature = signature.toString("hex");
+    var options = {
+      method: "POST",
+      url: "https://wbsapi.us.withingsmed.net/v2/signature",
+  
+      form: {
+        action: "getnonce",
+        client_id: process.env.client_ID_withings,
+        timestamp: timestamp,
+        signature: signature,
+      },
+    };
+    request(options, function (error, response) {
+      if (error) throw new Error(error);
+      var resa = JSON.parse(response.body);
+      nonce = resa.body.nonce;
+  
+      var data1 = "activate" + "," + process.env.client_ID_withings + "," + nonce;
+      signature1 = HMAC(data1);
+      signature1 = signature1.toString("hex");
+  
+      var options1 = {
+        method: "POST",
+        url: "https://wbsapi.us.withingsmed.net/v2/user",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        form: {
+          action: "activate",
+          client_id: process.env.client_ID_withings,
+          nonce: nonce,
+          signature: signature1,
+          mailingpref: 1,
+          birthdate: user_bday1,
+          measures: JSON.stringify([
+            {
+              value: 180,
+              unit: -2,
+              type: 4,
+            },
+            {
+              value: 8000,
+              unit: -2,
+              type: 1,
+            },
+          ]),
+          gender: user_gender1,
+          preflang: "en_US",
+          unit_pref: JSON.stringify({
+            weight: 1,
+            height: 6,
+            distance: 6,
+            temperature: 11,
+          }),
+          email: user_email,
+          timezone: "America/New_York",
+          shortname: short_name,
+          external_id: user_id,
+          mac_addresses: [mac_address],
+        },
+      };
+      request(options1, function (error, response) {
+        if (error) throw new Error(error);
+        var resa1 = JSON.parse(response.body);
+        // console.log("code:" + resa1.body.user.code);
+        const url = 'https://wbsapi.us.withingsmed.net/v2/oauth2';
+        const data = {
+          action: 'requesttoken',
+          grant_type: 'authorization_code',
+          client_id: process.env.client_ID_withings,
+          client_secret: process.env.secret_ID_withings,
+          code: resa1.body.user.code,
+          redirect_uri: process.env.redirecturl_withings,
+        };
+
+        request.post({
+          url: url,
+          form: data,
+        }, (error, response, body) => {
+          if (error) {
+            console.error('Error:', error);
+          } else {
+            var resa2 = JSON.parse(body);
+            return res.status(200).json({ res: "success", resa2 });
+            // console.log('activation code:', body);
+          }
+        });
+            
+      });
+    });
+          // console.log(user_bday1)
+          // console.log(short_name)
+          // console.log(mac_address)
+
+          // console.log(user_email)
+          // console.log(user_name)
+          // console.log(results)
+          // console.log(results1)
+        });
+    })
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+
+   
+  
+  };
 module.exports = {
   addtotime,
   get_weight,
@@ -1461,14 +1791,19 @@ module.exports = {
   delete_patient,
   get_one_doctor,
   get_one_patient,
+  safedata,
   patient_search_by_name,
   get_one_patient_devices,
   all_patients_of_one_doctor,
   add_notes,
   sharepatientdata,
+  activation_token,
   get_one_patient_notes,
   get_one_patient_time,
   patient_logout,
+  get_blood_pressure,
   order_device,
   activate_request,
+  get_url,
+  get_cid_csecret,
 };

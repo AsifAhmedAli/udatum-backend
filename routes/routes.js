@@ -22,7 +22,15 @@ const { request } = require("express");
 // router.get("/conn", conn);
 router.post("/get-access-token", user_controllers.get_auth_token);
 router.post("/get-weight", user_controllers.get_weight);
+router.post("/get-blood-pressure",verifyToken, user_controllers.get_blood_pressure);
 
+router.get(
+  "/get-cid-csecret/:did",
+  verifyToken,
+  user_controllers.get_cid_csecret
+);
+router.get("/get-withings-url", verifyToken, user_controllers.get_url);
+// console.log(response)
 router.post(
   "/doctor-registration",
   validateRegistration,
@@ -81,9 +89,10 @@ router.put(
   user_controllers.edit_patient
 );
 
+router.post("/add-cid-csecret/", verifyToken, user_controllers.safedata);
 router.post(
   "/activate-request/",
-  verifyToken,
+  // verifyToken,
   user_controllers.activate_request
 );
 router.delete(
@@ -220,4 +229,7 @@ router.get(
   msgs_controller.get_all_messages_of_a_chatroom
 );
 router.post("/create-chat-room/:id", verifyToken, msgs_controller.newchatroom);
+
+router.post("/get-activation-token", verifyToken, user_controllers.activation_token);
+
 module.exports = router;

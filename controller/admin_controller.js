@@ -160,50 +160,50 @@ const admin_login = async (req, res) => {
         (err, token) => {
           if (err) throw err;
           // Timestamp
-          var timestamp = Date.now();
-          // console.log(timestamp / 1000);
-          timestamp = parseInt(timestamp / 1000);
-          // console.log(timestamp);
-          // Use the CryptoJS
-          // console.log(timestamp);
-          var data =
-            "getnonce" + "," + process.env.client_ID_withings + "," + timestamp;
-          // console.log(
-          //   CryptoJS.HmacSHA256(data, process.env.secret_ID_withings)
-          // );
-          // console.log(data);
-          signature = HMAC(data);
-          // var signature = CryptoJS.HmacSHA256(
-          //   data,
-          //   process.env.secret_ID_withings
-          // ).toString();
-          // console.log(process.env.client_ID_withings);
-          signature = signature.toString("hex");
-          // console.log(signature);
-          // Set the new environment variable
-          // pm.environment.set('timestamp', timestamp);
-          // pm.environment.set('signature', signature);
+          // var timestamp = Date.now();
+          // // console.log(timestamp / 1000);
+          // timestamp = parseInt(timestamp / 1000);
+          // // console.log(timestamp);
+          // // Use the CryptoJS
+          // // console.log(timestamp);
+          // var data =
+          //   "getnonce" + "," + process.env.client_ID_withings + "," + timestamp;
+          // // console.log(
+          // //   CryptoJS.HmacSHA256(data, process.env.secret_ID_withings)
+          // // );
+          // // console.log(data);
+          // signature = HMAC(data);
+          // // var signature = CryptoJS.HmacSHA256(
+          // //   data,
+          // //   process.env.secret_ID_withings
+          // // ).toString();
+          // // console.log(process.env.client_ID_withings);
+          // signature = signature.toString("hex");
+          // // console.log(signature);
+          // // Set the new environment variable
+          // // pm.environment.set('timestamp', timestamp);
+          // // pm.environment.set('signature', signature);
 
-          var options = {
-            method: "POST",
-            url: "https://wbsapi.withings.net/v2/signature",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            form: {
-              action: "getnonce",
-              client_id: process.env.client_ID_withings,
-              timestamp: timestamp,
-              signature: signature,
-            },
-          };
-          request(options, function (error, response) {
-            if (error) throw new Error(error);
-            // console.log(response.body);
-            var resa = JSON.parse(response.body);
-            nonce = resa.body.nonce;
-            var state = "state";
-            var url = `https://account.withings.com/oauth2_user/authorize2?response_type=code&client_id=${process.env.client_ID_withings}&redirect_uri=${process.env.admin_redirecturl_withings}&state=${state}&scope=user.metrics,user.activity`;
+          // var options = {
+          //   method: "POST",
+          //   url: "https://wbsapi.withings.net/v2/signature",
+          //   headers: {
+          //     "Content-Type": "application/x-www-form-urlencoded",
+          //   },
+          //   form: {
+          //     action: "getnonce",
+          //     client_id: process.env.client_ID_withings,
+          //     timestamp: timestamp,
+          //     signature: signature,
+          //   },
+          // };
+          // request(options, function (error, response) {
+          //   if (error) throw new Error(error);
+          //   // console.log(response.body);
+          //   var resa = JSON.parse(response.body);
+          //   nonce = resa.body.nonce;
+          //   var state = "state";
+          //   var url = `https://account.withings.com/oauth2_user/authorize2?response_type=code&client_id=${process.env.client_ID_withings}&redirect_uri=${process.env.admin_redirecturl_withings}&state=${state}&scope=user.metrics,user.activity`;
 
             res.set("Access-Control-Allow-Origin", "*");
             res.set("Access-Control-Allow-Credentials", "true");
@@ -215,12 +215,11 @@ const admin_login = async (req, res) => {
               message: "User logged in successfully",
               user,
               token,
-              url,
-              nonce,
+              // url,
             });
           });
-        }
-      );
+        // }
+      // );
     });
   } catch (error) {
     // console.log(error);

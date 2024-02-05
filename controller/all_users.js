@@ -64,16 +64,14 @@ const new_doctor = async (req, res) => {
           };
           await transporter.sendMail(mailOptions);
   
-        });
-
-        const token = crypto.randomBytes(20).toString("hex");
-        const updateQuery = `UPDATE users SET token = ? WHERE email = ?`;
-         conn.query(updateQuery, [token, email]);
-
-
-        res.status(201).json({
-          message:
-            "User registered successfully. Please check your email for verification link.",
+          const token = crypto.randomBytes(20).toString("hex");
+          const updateQuery = `UPDATE users SET token = ? WHERE email = ?`;
+           await conn.query(updateQuery, [token, email], (error, result) => {
+            res.status(201).json({
+              message:
+                "User registered successfully. Please check your email for verification link.",
+            });
+           });
         });
       }
     );

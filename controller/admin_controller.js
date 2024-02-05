@@ -2,6 +2,8 @@ const conn = require("../conn/conn");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 var request = require("request");
+// const conn = connection();
+
 const verifyUser = async (req, res) => {
   try {
     const id = req.params.id;

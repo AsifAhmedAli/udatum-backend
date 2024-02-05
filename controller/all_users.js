@@ -167,24 +167,26 @@ const verify_email = async (req, res) => {
   try {
     const { token } = req.params;
     const selectQuery = `SELECT * FROM users WHERE token = ?`;
-    const results = await conn.query(selectQuery, [token]);
+    const results = await conn.query(selectQuery, [token], async (error, result)=>{
 
     if (!results) {
       res.status(400).json({ message: "Invalid verification link" });
     } else {
       const updateQuery = `UPDATE users SET verified1 = 1, token = NULL WHERE token = ?`;
-      await conn.query(updateQuery, [token]);
-      // Read the verified.html file and send it to the user
-      // if email verification is successful
-      const filePath = path.join(
-        __dirname,
-        "../../emails",
-        "verificationEmail.html"
-      );
-      const fileContent = await fs.promises.readFile(filePath, "utf-8");
-
-      res.send(fileContent);
+      await conn.query(updateQuery, [token],async (error, result)=> {
+        const filePath = path.join(
+          __dirname,
+          "../../emails",
+          "verificationEmail.html"
+        );
+        const fileContent = await fs.promises.readFile(filePath, "utf-8");
+  
+        res.send(fileContent);
+  
+      });
     }
+    });
+
   } catch (error) {
     // console.log(error);
     res.status(500).json({ message: error.message });

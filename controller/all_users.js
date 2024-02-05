@@ -19,64 +19,60 @@ function HMAC(data) {
   key = process.env.secret_ID_withings;
   return crypto.createHmac("sha256", key).update(data).digest();
 }
+
+
 const new_doctor = async (req, res) => {
   const { name, email, password } = req.body;
+
   try {
     // Check if the email is already registered
-    conn.query(
-      "SELECT * FROM users WHERE email = ?",
-      [email],
-      async (error, results) => {
-        if (error) {
-          return res.status(500).json({ message: error.message });
-        }
-        if (results.length > 0) {
-          return res.status(400).json({ message: "Email already registered" });
-        }
+    const [results] = await conn.query("SELECT * FROM users WHERE email = ?", [email]);
 
-        const status1 = 0;
-        const verified1 = 0;
-        const insertQuery = `INSERT INTO users (name, email, password, status1, verified1) VALUES (?, ?, ?, ?, ?)`;
-        await conn.query(insertQuery, [
-          name,
-          email,
-          password,
-          status1,
-          verified1,
-        ]);
+    if (results.length > 0) {
+      return res.status(400).json({ message: "Email already registered" });
+    }
 
-        const token = crypto.randomBytes(20).toString("hex");
-        const updateQuery = `UPDATE users SET token = ? WHERE email = ?`;
-        await conn.query(updateQuery, [token, email]);
+    const status1 = 0;
+    const verified1 = 0;
 
-        const transporter = nodemailer.createTransport({
-          service: "Gmail",
-          port: 465,
-          secure: true,
-          auth: {
-            user: process.env.EMAIL,
-            pass: process.env.PASSWORD,
-          },
-        });
-        const mailOptions = {
-          from: process.env.EMAIL,
-          to: email,
-          subject: "Email Verification",
-          text: `Hello ${name}, Thank you for registering as a doctor. Please click on the link below to verify your email address.`,
-          html: `<p>Hello ${name},</p> <p>Thank you for registering as a doctor.</p> <p>Please click on the link below to verify your email address:</p>
-            <a href='${process.env.SITE_URL}/verify/${token}'>${process.env.SITE_URL}/verify/${token}</a>`,
-          // html: `Please click this link to verify your email: <a href="http://localhost:3000/verify/${token}">Verify Email</a>`
-        };
-        await transporter.sendMail(mailOptions);
-
-        res.status(201).json({
-          message:
-            "User registered successfully. Please check your email for verification link.",
-        });
-      }
+    // Insert new user
+    await conn.query(
+      "INSERT INTO users (name, email, password, status1, verified1) VALUES (?, ?, ?, ?, ?)",
+      [name, email, password, status1, verified1]
     );
+
+    // Generate and update token
+    const token = crypto.randomBytes(20).toString("hex");
+    await conn.query("UPDATE users SET token = ? WHERE email = ?", [token, email]);
+
+    // Send verification email
+    const transporter = nodemailer.createTransport({
+      service: "Gmail",
+      port: 465,
+      secure: true,
+      auth: {
+        user: process.env.EMAIL,
+        pass: process.env.PASSWORD,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL,
+      to: email,
+      subject: "Email Verification",
+      text: `Hello ${name}, Thank you for registering as a doctor. Please click on the link below to verify your email address.`,
+      html: `<p>Hello ${name},</p> <p>Thank you for registering as a doctor.</p> <p>Please click on the link below to verify your email address:</p>
+        <a href='${process.env.SITE_URL}/verify/${token}'>${process.env.SITE_URL}/verify/${token}</a>`,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(201).json({
+      message: "User registered successfully. Please check your email for the verification link.",
+    });
+
   } catch (error) {
-    console.log(error);
+    console.error(error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -88,53 +84,63 @@ const new_doctor = async (req, res) => {
 //     conn.query(
 //       "SELECT * FROM users WHERE email = ?",
 //       [email],
-//       (error, results) => {
+//       async (error, results) => {
 //         if (error) {
-//           return res.status(500).json({ message:error.message });
+//           return res.status(500).json({ message: error.message });
 //         }
 //         if (results.length > 0) {
 //           return res.status(400).json({ message: "Email already registered" });
 //         }
+
+//         const status1 = 0;
+//         const verified1 = 0;
+//         const insertQuery = `INSERT INTO users (name, email, password, status1, verified1) VALUES (?, ?, ?, ?, ?)`;
+//         await conn.query(insertQuery, [
+//           name,
+//           email,
+//           password,
+//           status1,
+//           verified1,
+//         ]);
+
+//         const token = crypto.randomBytes(20).toString("hex");
+//         const updateQuery = `UPDATE users SET token = ? WHERE email = ?`;
+//         await conn.query(updateQuery, [token, email]);
+
+//         const transporter = nodemailer.createTransport({
+//           service: "Gmail",
+//           port: 465,
+//           secure: true,
+//           auth: {
+//             user: process.env.EMAIL,
+//             pass: process.env.PASSWORD,
+//           },
+//         });
+//         const mailOptions = {
+//           from: process.env.EMAIL,
+//           to: email,
+//           subject: "Email Verification",
+//           text: `Hello ${name}, Thank you for registering as a doctor. Please click on the link below to verify your email address.`,
+//           html: `<p>Hello ${name},</p> <p>Thank you for registering as a doctor.</p> <p>Please click on the link below to verify your email address:</p>
+//             <a href='${process.env.SITE_URL}/verify/${token}'>${process.env.SITE_URL}/verify/${token}</a>`,
+//           // html: `Please click this link to verify your email: <a href="http://localhost:3000/verify/${token}">Verify Email</a>`
+//         };
+//         await transporter.sendMail(mailOptions);
+
+//         res.status(201).json({
+//           message:
+//             "User registered successfully. Please check your email for verification link.",
+//         });
 //       }
 //     );
-
-//     const status1 = 0;
-//     const verified1 = 0;
-//     const insertQuery = `INSERT INTO users (name, email, password, status1, verified1) VALUES (?, ?, ?, ?, ?)`;
-//     await conn.query(insertQuery, [name, email, password, status1, verified1]);
-
-//     const token = crypto.randomBytes(20).toString("hex");
-//     const updateQuery = `UPDATE users SET token = ? WHERE email = ?`;
-//     await conn.query(updateQuery, [token, email]);
-
-//     const transporter = nodemailer.createTransport({
-//       service: "Gmail",
-//       port: 465,
-//       secure: true,
-//       auth: {
-//         user: process.env.EMAIL,
-//         pass: process.env.PASSWORD,
-//       },
-//     });
-//     const mailOptions = {
-//       from: process.env.EMAIL,
-//       to: email,
-//       subject: "Email Verification",
-//       text: `Hello ${name}, Thank you for registering as a doctor. Please click on the link below to verify your email address.`,
-//       html: `<p>Hello ${name},</p> <p>Thank you for registering as a doctor.</p> <p>Please click on the link below to verify your email address:</p>
-//         <a href='${process.env.SITE_URL}/verify/${token}'>${process.env.SITE_URL}/verify/${token}</a>`,
-//       // html: `Please click this link to verify your email: <a href="http://localhost:3000/verify/${token}">Verify Email</a>`
-//     };
-//     await transporter.sendMail(mailOptions);
-
-//     await res.status(201).json({
-//       message:
-//         "User registered successfully. Please check your email for verification link.",
-//     });
 //   } catch (error) {
-//     // console.log(error);
-//    await res.status(500).json({ message: error.message });
+//     console.log(error);
+//     res.status(500).json({ message: error.message });
 //   }
+// };
+
+
+
 
 // var name1 = req.body.name;
 // var email1 = req.body.email;

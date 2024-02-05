@@ -1,7 +1,7 @@
-var mysql = require("mysql2");
+var mysql = require("mysql2/promise");
 require("dotenv").config();
 // const connection = () => {
-var con = mysql.createConnection({
+var con = await mysql.createConnection({
   host: process.env.host,
   user: process.env.user,
   password: process.env.pass,

@@ -167,13 +167,13 @@ const verify_email = async (req, res) => {
   try {
     const { token } = req.params;
     const selectQuery = `SELECT * FROM users WHERE token = ?`;
-    const results = await conn.query(selectQuery, [token], async (error, result)=>{
+    const results = conn.query(selectQuery, [token], async (error, result)=>{
 
     if (!results) {
       res.status(400).json({ message: "Invalid verification link" });
     } else {
       const updateQuery = `UPDATE users SET verified1 = 1, token = NULL WHERE token = ?`;
-      await conn.query(updateQuery, [token],async (error, result)=> {
+       conn.query(updateQuery, [token], async (error, result)=> {
         const filePath = path.join(
           __dirname,
           "../../emails",

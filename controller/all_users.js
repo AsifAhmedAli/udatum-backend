@@ -37,37 +37,39 @@ const new_doctor = async (req, res) => {
         const status1 = 0;
         const verified1 = 0;
         const insertQuery = `INSERT INTO users (name, email, password, status1, verified1) VALUES (?, ?, ?, ?, ?)`;
-        await conn.query(insertQuery, [
+        conn.query(insertQuery, [
           name,
           email,
           password,
           status1,
           verified1,
-        ]);
+        ], async (err, result)=> {
+          const transporter = nodemailer.createTransport({
+            service: "Gmail",
+            port: 465,
+            secure: true,
+            auth: {
+              user: process.env.EMAIL,
+              pass: process.env.PASSWORD,
+            },
+          });
+          const mailOptions = {
+            from: process.env.EMAIL,
+            to: email,
+            subject: "Email Verification",
+            text: `Hello ${name}, Thank you for registering as a doctor. Please click on the link below to verify your email address.`,
+            html: `<p>Hello ${name},</p> <p>Thank you for registering as a doctor.</p> <p>Please click on the link below to verify your email address:</p>
+              <a href='${process.env.SITE_URL}/verify/${token}'>${process.env.SITE_URL}/verify/${token}</a>`,
+            // html: `Please click this link to verify your email: <a href="http://localhost:3000/verify/${token}">Verify Email</a>`
+          };
+          await transporter.sendMail(mailOptions);
+  
+        });
 
         const token = crypto.randomBytes(20).toString("hex");
         const updateQuery = `UPDATE users SET token = ? WHERE email = ?`;
-        await conn.query(updateQuery, [token, email]);
+         conn.query(updateQuery, [token, email]);
 
-        const transporter = nodemailer.createTransport({
-          service: "Gmail",
-          port: 465,
-          secure: true,
-          auth: {
-            user: process.env.EMAIL,
-            pass: process.env.PASSWORD,
-          },
-        });
-        const mailOptions = {
-          from: process.env.EMAIL,
-          to: email,
-          subject: "Email Verification",
-          text: `Hello ${name}, Thank you for registering as a doctor. Please click on the link below to verify your email address.`,
-          html: `<p>Hello ${name},</p> <p>Thank you for registering as a doctor.</p> <p>Please click on the link below to verify your email address:</p>
-            <a href='${process.env.SITE_URL}/verify/${token}'>${process.env.SITE_URL}/verify/${token}</a>`,
-          // html: `Please click this link to verify your email: <a href="http://localhost:3000/verify/${token}">Verify Email</a>`
-        };
-        await transporter.sendMail(mailOptions);
 
         res.status(201).json({
           message:

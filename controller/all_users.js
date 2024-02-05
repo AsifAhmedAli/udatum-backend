@@ -53,6 +53,7 @@ const new_doctor = async (req, res) => {
               pass: process.env.PASSWORD,
             },
           });
+          const token = crypto.randomBytes(20).toString("hex");
           const mailOptions = {
             from: process.env.EMAIL,
             to: email,
@@ -64,7 +65,7 @@ const new_doctor = async (req, res) => {
           };
           await transporter.sendMail(mailOptions);
   
-          const token = crypto.randomBytes(20).toString("hex");
+          
           const updateQuery = `UPDATE users SET token = ? WHERE email = ?`;
            await conn.query(updateQuery, [token, email], (error, result) => {
             res.status(201).json({

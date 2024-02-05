@@ -176,7 +176,7 @@ const verify_email = async (req, res) => {
        conn.query(updateQuery, [token], async (error, result)=> {
         const filePath = path.join(
           __dirname,
-          "../../emails",
+          "../emails",
           "verificationEmail.html"
         );
         const fileContent = await fs.promises.readFile(filePath, "utf-8");

@@ -608,32 +608,11 @@ const edit_patient = async (req, res) => {
       const date_of_birth = req.body.date_of_birth || null;
       const medical_condition = req.body.medical_condition || null;
 
-      await conn.query(
+      await conn.promise().query(
         "UPDATE patient_details SET date_of_birth = ? , medical_condition = ? WHERE patient_id = ?",
         [date_of_birth, medical_condition, patientId]
       );
     }
-
-    // update patient_devices table if data exists
-    // if (req.body.device_barcode || req.body.device_id) {
-    //   const device_barcode = req.body.device_barcode || null;
-    //   // const device_id = req.body.device_id || null;
-
-    //   await conn.query(
-    //     "UPDATE patient_devices SET device_barcode = ? WHERE patient_id = ?",
-    //     [device_barcode, patientId]
-    //   );
-    // }
-
-    // // update patient_notes table if data exists
-    // if (req.body.notes) {
-    //   const notes = req.body.notes || null;
-
-    //   await conn.query(
-    //     "UPDATE patient_notes SET note = ? WHERE patient_id = ?",
-    //     [notes, patientId]
-    //   );
-    // }
 
     return res.json({ message: "Patient data updated successfully" });
   } catch (error) {
@@ -1418,6 +1397,7 @@ const get_blood_pressure = async (req, res) => {
         };
         var response2 = await request1(options);
         response2 = JSON.parse(response2.body);
+        console.log(response2);
         response2.body.measuregrps.forEach(async element => {
           element.measures.forEach(async element1 => {
             await queryAsync("insert into blood_pressure_records (pid, dateofmeasurement, value) values (?, ?, ?)", [pid, element.created, element1.value]);
@@ -1487,7 +1467,15 @@ const stripe_call = async (req, res) => {
   const devicetype = req.body.devicetype;
   const did = req.body.did;
   const address = req.body.address;
+  encodeURIComponent
+  const quantity1 = encodeURIComponent(quantity);
+const devicetype1 = encodeURIComponent(devicetype);
+const did1 = encodeURIComponent(did);
+const address1 = encodeURIComponent(address);
   // console.log(quantity);
+  // console.log(devicetype);
+  // console.log(did);
+  // console.log(address);
   const session = await stripe.checkout.sessions.create({
     line_items: [
       {
@@ -1497,7 +1485,7 @@ const stripe_call = async (req, res) => {
       },
     ],
     mode: "payment",
-    success_url: `${process.env.frontend_URL}/doctor/success.html?quantity=${quantity}&devicetype=${devicetype}&did=${did}&address=${address}`,
+    success_url: `${process.env.frontend_URL}/doctor/success.html?quantity=${quantity1}&devicetype=${devicetype1}&did=${did1}&address=${address1}`,
     cancel_url: `${process.env.frontend_URL}/doctor/cancel.html`,
   });
   // return res.status(200).json({ msg: "Done" });

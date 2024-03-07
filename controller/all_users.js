@@ -1379,6 +1379,7 @@ const get_blood_pressure = async (req, res) => {
     }
         // console.log(results1)
         var lastupdate = results1[0].last_update_unix_timestamp; 
+        console.log(lastupdate)
         var options = {
           method: "POST",
           url: "https://wbsapi.us.withingsmed.net/measure",
@@ -1391,21 +1392,22 @@ const get_blood_pressure = async (req, res) => {
           form: {
             action: "getmeas",
             category: "1",
-            lastupdate: lastupdate,
-            meastypes: "11",
+            lastupdate: 0,
+            meastypes: "9,10,11",
           },
         };
         var response2 = await request1(options);
         response2 = JSON.parse(response2.body);
-        console.log(response2);
+        // console.log(response2.body.measuregrps);
         response2.body.measuregrps.forEach(async element => {
+          console.log(element)
           element.measures.forEach(async element1 => {
-            await queryAsync("insert into blood_pressure_records (pid, dateofmeasurement, value) values (?, ?, ?)", [pid, element.created, element1.value]);
+            await queryAsync("insert into blood_pressure_records (pid, dateofmeasurement, value, type) values (?, ?, ?, ?)", [pid, element.created, element1.value, element1.type]);
           });
         });
         // console.log([0].[0].value);
         await queryAsync("update last_fetched_data set last_update_unix_timestamp = ? where pid = ? and device_type = ?", [currentTimestampInSeconds, pid, "blood pressure"]);
-        var endresult = await queryAsync("select * from blood_pressure_records where pid = ? order by dateofmeasurement desc limit 15", [pid]);
+        var endresult = await queryAsync("select * from blood_pressure_records where pid = ? order by id desc limit 90", [pid]);
         return res.status(200).json({data: endresult});
         
 

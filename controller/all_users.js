@@ -1392,7 +1392,7 @@ const get_blood_pressure = async (req, res) => {
           form: {
             action: "getmeas",
             category: "1",
-            lastupdate: 0,
+            lastupdate: lastupdate,
             meastypes: "9,10,11",
           },
         };

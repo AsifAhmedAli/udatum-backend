@@ -46,6 +46,8 @@ router.post(
 
 router.get("/doctor-logout", user_controllers.doctor_logout);
 router.get("/get-one-doctor/:id", verifyToken, user_controllers.get_one_doctor);
+router.post("/get-new-refesh-token", verifyToken, user_controllers.get_new_access_token_using_refresh_token);
+
 router.post(
   "/get-one-patient-time/:id",
   verifyToken,

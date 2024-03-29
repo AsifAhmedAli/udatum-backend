@@ -11,7 +11,7 @@ const crypto = require("crypto");
 const { response, json } = require("express");
 // const { json } = require("express");
 const stripe = require("stripe")(
-  "sk_test_51Nrjg7CgXt0dXLeDr3UMnGYpg03Dh3tMQ24PR1f8WIo84no3JCVB45rtpUmVZyuV9vN3rvwA8E0stGXPTJ254mso006ZezGd6X"
+  process.env.stripe_api_key
 );
 // const { time } = require("console");
 //new registration doctor-controller
@@ -1287,30 +1287,6 @@ const patient_logout = (req, res) => {
   }
 };
 
-//all patients of one doctor
-// const all_patients_of_one_doctor = (req, res) => {
-//   var d_id1 = req.query.d_id;
-//   //   console.log(d_id1);
-//   var dbname = process.env.dbname;
-//   let sql = "CALL " + dbname + ".all_patients_of_one_doctor(?)";
-
-//   conn.query(sql, [d_id1], (error, results, fields) => {
-//     if (error) {
-//       return console.error(error.message);
-//     } else {
-//       //   console.log(results);
-//       //   return res.results;
-//       return res.send({ msg: results[0] });
-//     }
-//   });
-// };
-// function all_msgs(con, err) {
-//   if (err) throw err;
-//   con.query("SELECT * FROM msgs", function (err, result, fields) {
-//     if (err) throw err;
-//     console.log(result);
-//   });
-// }
 const get_auth_token = (req, res) => {
   var code = req.body.code;
   var options = {
@@ -1386,8 +1362,8 @@ const get_blood_pressure = async (req, res) => {
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
             Authorization: `Bearer ${with_access_token}`,
-            Cookie:
-              "current_path_login=%3Fresponse_type%3Dcode%26client_id%3D188ad9ebf3c8bedad1ee8468b756ee4f4e1d0147c66146a8ef78e8d234345f27%26redirect_uri%3Dhttp%253A%252F%252F127.0.0.1%252F%26state%3D3UJ8Thq6d6Ce7EV%26scope%3Duser.metrics%252Cuser.activity%26b%3Dauthorize2; next_block_login=authorize2; next_workflow_login=oauth2_user; signin_authorize_state=06f68f9b2e; url_params=%3Fresponse_type%3Dcode%26client_id%3D188ad9ebf3c8bedad1ee8468b756ee4f4e1d0147c66146a8ef78e8d234345f27%26redirect_uri%3Dhttp%253A%252F%252F127.0.0.1%252F%26state%3D3UJ8Thq6d6Ce7EV%26scope%3Duser.metrics%252Cuser.activity%26b%3Dauthorize2",
+            // Cookie:
+            //   "current_path_login=%3Fresponse_type%3Dcode%26client_id%3D188ad9ebf3c8bedad1ee8468b756ee4f4e1d0147c66146a8ef78e8d234345f27%26redirect_uri%3Dhttp%253A%252F%252F127.0.0.1%252F%26state%3D3UJ8Thq6d6Ce7EV%26scope%3Duser.metrics%252Cuser.activity%26b%3Dauthorize2; next_block_login=authorize2; next_workflow_login=oauth2_user; signin_authorize_state=06f68f9b2e; url_params=%3Fresponse_type%3Dcode%26client_id%3D188ad9ebf3c8bedad1ee8468b756ee4f4e1d0147c66146a8ef78e8d234345f27%26redirect_uri%3Dhttp%253A%252F%252F127.0.0.1%252F%26state%3D3UJ8Thq6d6Ce7EV%26scope%3Duser.metrics%252Cuser.activity%26b%3Dauthorize2",
           },
           form: {
             action: "getmeas",
@@ -1397,8 +1373,9 @@ const get_blood_pressure = async (req, res) => {
           },
         };
         var response2 = await request1(options);
+        // console.log(response2)
         response2 = JSON.parse(response2.body);
-        // console.log(response2.body.measuregrps);
+        console.log(response2);
         response2.body.measuregrps.forEach(async element => {
           console.log(element)
           element.measures.forEach(async element1 => {
@@ -1469,7 +1446,7 @@ const stripe_call = async (req, res) => {
   const devicetype = req.body.devicetype;
   const did = req.body.did;
   const address = req.body.address;
-  encodeURIComponent
+  // encodeURIComponent
   const quantity1 = encodeURIComponent(quantity);
 const devicetype1 = encodeURIComponent(devicetype);
 const did1 = encodeURIComponent(did);
@@ -1762,10 +1739,38 @@ const activation_token = (req, res) =>{
   } catch (error) {
     return res.status(500).json({ message: "Internal server error" });
   }
-
-   
-  
   };
+
+
+
+  const get_new_access_token_using_refresh_token = (req, res) =>{
+    const refresh_token = req.body.refresh_token;
+try{
+          const url = 'https://wbsapi.us.withingsmed.net/v2/oauth2';
+          const data = {
+            action: 'requesttoken',
+            grant_type: 'refresh_token',
+            client_id: process.env.client_ID_withings,
+            client_secret: process.env.secret_ID_withings,
+            refresh_token: refresh_token,
+          };
+  
+          request.post({
+            url: url,
+            form: data,
+          }, (error, response, body) => {
+            if (error) {
+              console.error('Error:', error);
+            } else {
+              var resa2 = JSON.parse(body);
+              return res.status(200).json({ res: "success", resa2 });
+              // console.log('activation code:', body);
+            }
+          });
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+    };
 module.exports = {
   addtotime,
   get_weight,
@@ -1793,6 +1798,7 @@ module.exports = {
   activation_token,
   get_one_patient_notes,
   get_one_patient_time,
+  get_new_access_token_using_refresh_token,
   patient_logout,
   get_blood_pressure,
   order_device,
